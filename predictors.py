@@ -1,31 +1,16 @@
-import os
-
-import numpy as np
 import pandas as pd
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.linear_model import LogisticRegression
-from sklearn.model_selection import train_test_split, KFold, cross_val_score, cross_val_predict
+from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, classification_report
-from sklearn.svm import SVC
 import xgboost as xgb
+from tqdm import tqdm
+
+from data_read import load_prepared
 
 pd.set_option('display.max_columns', 25)
 pd.set_option('display.width', 1000)
 
-# Step 1: Define the folder containing CSV files
-folder_path = f'data/prepared5'
-
-# Step 2: Load all CSV files into a single DataFrame
-dataframes = []
-for filename in os.listdir(folder_path):
-    if filename.endswith('.csv'):
-        file_path = os.path.join(folder_path, filename)
-        df = pd.read_csv(file_path, sep=';', dtype=np.float32)
-        df=df.drop(columns=['lat', 'lon'])
-        dataframes.append(df)
-
-main_df = pd.concat(dataframes, ignore_index=True)
-train_df, test_df = train_test_split(main_df, test_size=0.3)
+big_df = load_prepared('data/prepared7')
+train_df, test_df = train_test_split(big_df, test_size=0.3)
 
 # print(len(train_df), len(test_df))
 # Step 3: Prepare features (X) and target (y)
@@ -43,6 +28,8 @@ model = xgb.XGBClassifier(scale_pos_weight=scale_weight, max_depth=6)
 model.fit(X_train, y_train)
 
 y_pred = model.predict(X_test)
+
+model.save_model('models/test.model')
 
 print("Classification Report:")
 print(classification_report(y_test, y_pred))

@@ -6,7 +6,7 @@ import pandas as pd
 from tqdm import tqdm
 
 from Transformer import RollDataTransformer
-from data_read import read_truck_data, read_dir_data
+from data_read import read_truck_data, read_raw_dirdata
 
 tracks = range(1, 36)
 
@@ -33,7 +33,7 @@ preprocessed_dfs=dict()
 dir_names = [dir_path(i) for i in tracks]
 num_tracks = []
 for dir_name in tqdm(dir_names, desc="Processing paths"):
-    new_path = read_dir_data(dir_name, r'[0-9]{1,3}_w')
+    new_path = read_raw_dirdata(dir_name, r'[0-9]{1,3}_w')
     # Process dataframes within the directory with a progress bar
     rolled_new_paths = [rdTrans.roll_data(df) for df in new_path]
     routeID = dir_name.split(r'/')[-1]
