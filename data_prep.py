@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
-from Transformer import RollDataTransformer
+from Transformer import RollingWindowTransformer
 from data_read import read_truck_data, read_raw_dirdata
 
 tracks = range(1, 36)
@@ -14,7 +14,7 @@ tracks = range(1, 36)
 dir_path = lambda n: f"data/routes/route{n}"
 
 ws=7
-rdTrans = RollDataTransformer({
+rdTrans = RollingWindowTransformer({
         'vel': ['', 'std'],
         'rot_X': ['', 'std', 'range'],
         'rot_Y': ['', 'std', 'range'],
@@ -48,7 +48,6 @@ for dir_name in tqdm(dir_names, desc="Processing paths"):
             preprocessed_dfs[routeID]=pd.concat(rolled_new_paths, ignore_index=True)
 
 print(f"Loaded {len(preprocessed_dfs)} paths")
-print(f"On average, they have {np.average(num_tracks):.0f} tracks per path. Max is {max(num_tracks)}")
 
 Path(f'data/prepared{ws}').mkdir(parents=True, exist_ok=True)
 for route, df in tqdm(preprocessed_dfs.items(), desc='saving data'):
