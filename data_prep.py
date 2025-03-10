@@ -10,22 +10,25 @@ from data_read import read_truck_data, read_raw_dirdata
 
 tracks = range(1, 36)
 
-
 dir_path = lambda n: f"data/routes/route{n}"
+
+def add_stats(frame: pd.DataFrame)-> pd.DataFrame:
+    frame['energy_proxy'] = frame['vel'] ** 2 + frame['acc'] ** 2
+    frame['acc_ratio'] = np.sqrt(frame['acc_X'] ** 2 + frame['acc_Z'] ** 2) / frame['acc_Y']
+
+    return frame
 
 ws=7
 rdTrans = RollingWindowTransformer({
         'vel': ['', 'std'],
-        'rot_X': ['', 'std', 'range'],
-        'rot_Y': ['', 'std', 'range'],
-        # 'acc_X': ['max', 'std'],
-        'acc_Y': ['max', 'std'],
-        # 'acc_Z': ['max', 'std',],
-        'acc': ['', 'max', 'std', 'range'],
+        'rot_X': ['', 'std', 'var'],
+        'rot_Y': ['', 'std', 'var'],
+        'acc_Y': ['max', 'std', 'var'],
+        'acc': ['', 'sum', 'std', 'var'],
         'fb_tilt': ['max', 'std',],
         'tilt': ['max', 'std',],
-        # 'jolt': ['max', 'std'],
-        # 'jolt_Y': ['max', 'std'],
+        'energy_proxy': [''],
+        'acc_ratio': ['']
     },
         window_size=ws)
 preprocessed_dfs=dict()
@@ -35,7 +38,7 @@ num_tracks = []
 for dir_name in tqdm(dir_names, desc="Processing paths"):
     new_path = read_raw_dirdata(dir_name, r'[0-9]{1,3}_w')
     # Process dataframes within the directory with a progress bar
-    rolled_new_paths = [rdTrans.roll_data(df) for df in new_path]
+    rolled_new_paths = [rdTrans.roll_data(add_stats(df)) for df in new_path]
     routeID = dir_name.split(r'/')[-1]
     if len(rolled_new_paths)>0:
         num_tracks.append(len(rolled_new_paths))

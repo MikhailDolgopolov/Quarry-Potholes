@@ -12,8 +12,6 @@ pd.set_option('display.width', 1000)
 big_df = load_prepared('data/prepared7')
 train_df, test_df = train_test_split(big_df, test_size=0.3)
 
-# print(len(train_df), len(test_df))
-# Step 3: Prepare features (X) and target (y)
 X_train, y_train = train_df.drop(columns=['hole']), train_df['hole']
 X_test, y_test = test_df.drop(columns=['hole']), test_df['hole']
 
@@ -29,7 +27,7 @@ model.fit(X_train, y_train)
 
 y_pred = model.predict(X_test)
 
-model.save_model('models/test.model')
+# model.save_model('models/test.model')
 
 print("Classification Report:")
 print(classification_report(y_test, y_pred))

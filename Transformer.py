@@ -3,7 +3,7 @@ from sklearn.base import BaseEstimator, TransformerMixin
 from typing import Dict, List, Literal
 
 # Allowed operations for each column.
-OpType = Literal['', 'min', 'max', 'range', 'std', 'mean']
+OpType = Literal['', 'min', 'max', 'range', 'std', 'mean', 'var']
 
 
 class RollingWindowTransformer(BaseEstimator, TransformerMixin):
@@ -15,7 +15,7 @@ class RollingWindowTransformer(BaseEstimator, TransformerMixin):
     ----------
     column_params : dict
         A dictionary mapping column names to a list of operations to compute.
-        Operations can be one of: '', 'min', 'max', 'range', 'std', 'mean'.
+        Operations can be one of: '', 'min', 'max', 'range', 'std', 'mean', 'var'.
         The empty string indicates that the original column should be kept.
     window_size : int, default=5
         The size of the rolling window.
@@ -84,6 +84,10 @@ class RollingWindowTransformer(BaseEstimator, TransformerMixin):
                 agg_results['std'] = col_rolling.std()
             if 'mean' in ops:
                 agg_results['mean'] = col_rolling.mean()
+            if 'var' in ops:
+                agg_results['var'] = col_rolling.var()
+            if 'sum' in ops:
+                agg_results['sum'] = col_rolling.sum()
 
             # Map each operation to its resulting column in the output.
             for op in ops:
@@ -98,6 +102,10 @@ class RollingWindowTransformer(BaseEstimator, TransformerMixin):
                     result[f'{col}_std'] = agg_results['std']
                 elif op == 'mean':
                     result[f'{col}_mean'] = agg_results['mean']
+                elif op == 'var':
+                    result[f'{col}_var'] = agg_results['var']
+                elif op == 'sum':
+                    result[f'{col}_sum'] = agg_results['sum']
                 elif op == '':
                     # Copy the original column.
                     result[col] = X[col]

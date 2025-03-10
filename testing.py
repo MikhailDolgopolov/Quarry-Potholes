@@ -1,19 +1,30 @@
-import numpy as np
 import pandas as pd
-import xgboost as xgb
-from sklearn.metrics import classification_report
-from xgboost import XGBClassifier
+from matplotlib import pyplot as plt
 
 from data_read import load_prepared
 
-model = XGBClassifier()
-model.load_model('models/test.model')
+df = load_prepared('data/prepared7')
 
-big_df = load_prepared('data/prepared7')
+print(df.columns)
 
-X, y = big_df.drop(columns=['hole']), big_df['hole']
+corr_matrix = df.corr()
 
-y_pred = model.predict(X)
+# Create figure and axis
+plt.figure(figsize=(12, 10))
+plt.matshow(corr_matrix, fignum=False)
 
-print("Classification Report:")
-print(classification_report(y, y_pred))
+# Add colorbar
+plt.colorbar()
+
+# Add labels
+plt.xticks(range(len(corr_matrix.columns)), corr_matrix.columns, rotation=45)
+plt.yticks(range(len(corr_matrix.columns)), corr_matrix.columns)
+
+# Add correlation values as text
+for i in range(len(corr_matrix.columns)):
+    for j in range(len(corr_matrix.columns)):
+        plt.text(i, j, f'{corr_matrix.iloc[i, j]:.2f}',
+                ha='center', va='center')
+
+plt.tight_layout()
+plt.show()
