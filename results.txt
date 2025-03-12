@@ -1,0 +1,9 @@
+gam10 Classification Report:
+              precision    recall  f1-score   support
+
+         0.0       0.87      0.77      0.82     99421
+         1.0       0.66      0.79      0.72     56009
+
+    accuracy                           0.78    155430
+   macro avg       0.76      0.78      0.77    155430
+weighted avg       0.79      0.78      0.78    155430

@@ -18,17 +18,15 @@ def add_stats(frame: pd.DataFrame)-> pd.DataFrame:
 
     return frame
 
-ws=7
+ws=10
 rdTrans = RollingWindowTransformer({
-        'vel': ['', 'std'],
-        'rot_X': ['', 'std', 'var'],
-        'rot_Y': ['', 'std', 'var'],
-        'acc_Y': ['max', 'std', 'var'],
-        'acc': ['', 'sum', 'std', 'var'],
-        'fb_tilt': ['max', 'std',],
-        'tilt': ['max', 'std',],
-        'energy_proxy': [''],
-        'acc_ratio': ['']
+        'rot_X': ['', 'std', 'var', 'range'],
+        'rot_Y': ['', 'std', 'var', 'range'],
+        'acc_X': ['', 'std'],
+        'acc_Z': ['', 'std'],
+        'acc': ['', 'std', 'var', 'max', 'range'],
+        'fb_tilt': ['max', 'std', 'var', 'range'],
+        'tilt': ['max', 'var', 'range'],
     },
         window_size=ws)
 preprocessed_dfs=dict()
