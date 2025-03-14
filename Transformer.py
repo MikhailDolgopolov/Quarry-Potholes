@@ -112,9 +112,10 @@ class RollingWindowTransformer(BaseEstimator, TransformerMixin):
                 else:
                     raise ValueError(f"Operation '{op}' not recognized for column '{col}'.")
 
-        # Optionally preserve additional columns (example: 'hole').
-        if 'hole' in X.columns and 'hole' not in result.columns:
-            result['hole'] = X['hole']
+        preserve = ['hole', 'class']
+        for output in preserve:
+            if output in X.columns and output not in result.columns:
+                result[output] = X[output]
 
         # Fill missing values using forward-fill then backward-fill and drop any remaining NaNs.
         result = result.ffill().bfill().dropna()

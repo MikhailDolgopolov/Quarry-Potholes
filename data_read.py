@@ -50,12 +50,12 @@ def read_truck_data(path: str) -> Optional[pd.DataFrame]:
 
     return df
 
-def read_raw_dirdata(dir_path: str, csv_pattern: str) -> List[pd.DataFrame]:
+def read_raw_dirdata(dir_path: str, csv_pattern: str, func: Callable[[str], pd.DataFrame]=read_truck_data) -> List[pd.DataFrame]:
     csv_pattern+='.csv'
     pattern = re.compile(csv_pattern)
     try:
         files = [os.path.join(dir_path, f) for f in os.listdir(dir_path) if pattern.match(f)]
-        return [read_truck_data(file) for file in files]
+        return [func(file) for file in files]
     except:
         return []
 
@@ -71,3 +71,33 @@ def load_prepared(folder_path):
             dataframes.append(df)
 
     return pd.concat(dataframes, ignore_index=True)
+
+def read_new_points(path: str) -> Optional[pd.DataFrame]:
+    try:
+        raw_df = pd.read_csv(path, delimiter=';', encoding='windows-1251', index_col=0)
+
+        raw_df = convert_dash_to_nan(raw_df)
+    except:
+        return None
+    explicit_columns = ['Широта', 'Долгота', 'Скорость', 'point']
+    pattern_columns = raw_df.columns[raw_df.columns.str.contains('Ускорение|наклон', regex=True)]
+
+    # Combine columns
+    selected_columns = explicit_columns + list(pattern_columns)
+
+    new_names = ['lat', 'lon', 'vel', 'class', 'acc_X', 'acc_Y', 'acc_Z', 'fb_tilt',
+                 'tilt']
+    # print(dict(zip(selected_columns, new_names)))
+    names_map = {selected_columns[i]: new_names[i] for i in range(len(selected_columns))}
+    try:
+        # Filter and rename DataFrame
+        filtered_df = raw_df[selected_columns]
+        df = filtered_df.rename(columns=names_map)
+    except Exception as e:
+        print(f"Trouble with {path}:")
+        print(e)
+        return None
+    df['class'] = df['class'].str.replace(r'.*?(\d+).*', r'\1', regex=True).astype('category')
+    df['acc'] = calculate_summed_magnitude(df, 'acc_')
+
+    return df

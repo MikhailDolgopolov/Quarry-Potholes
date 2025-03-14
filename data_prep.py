@@ -1,12 +1,10 @@
-import os
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
 from Transformer import RollingWindowTransformer
-from data_read import read_truck_data, read_raw_dirdata
+from data_read import read_raw_dirdata
 
 tracks = range(1, 36)
 
@@ -14,7 +12,6 @@ dir_path = lambda n: f"data/routes/route{n}"
 
 def add_stats(frame: pd.DataFrame)-> pd.DataFrame:
     frame['energy_proxy'] = frame['vel'] ** 2 + frame['acc'] ** 2
-    frame['acc_ratio'] = np.sqrt(frame['acc_X'] ** 2 + frame['acc_Z'] ** 2) / frame['acc_Y']
 
     return frame
 
@@ -30,7 +27,7 @@ rdTrans = RollingWindowTransformer({
     },
         window_size=ws)
 preprocessed_dfs=dict()
-# Process directories with a progress bar
+
 dir_names = [dir_path(i) for i in tracks]
 num_tracks = []
 for dir_name in tqdm(dir_names, desc="Processing paths"):
