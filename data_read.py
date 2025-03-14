@@ -60,14 +60,15 @@ def read_raw_dirdata(dir_path: str, csv_pattern: str, func: Callable[[str], pd.D
         return []
 
 
-def load_prepared(folder_path):
+def load_prepared(folder_path, keep_latlon=False):
     # Step 2: Load all CSV files into a single DataFrame
     dataframes = []
     for filename in tqdm(os.listdir(folder_path), desc='Loading data'):
         if filename.endswith('.csv'):
             file_path = os.path.join(folder_path, filename)
             df = pd.read_csv(file_path, sep=';', dtype=np.float32)
-            df = df.drop(columns=['lat', 'lon'])
+            if not keep_latlon:
+                df = df.drop(columns=['lat', 'lon'])
             dataframes.append(df)
 
     return pd.concat(dataframes, ignore_index=True)
@@ -75,8 +76,6 @@ def load_prepared(folder_path):
 def read_new_points(path: str) -> Optional[pd.DataFrame]:
     try:
         raw_df = pd.read_csv(path, delimiter=';', encoding='windows-1251', index_col=0)
-
-        raw_df = convert_dash_to_nan(raw_df)
     except:
         return None
     explicit_columns = ['Широта', 'Долгота', 'Скорость', 'point']
@@ -97,7 +96,8 @@ def read_new_points(path: str) -> Optional[pd.DataFrame]:
         print(f"Trouble with {path}:")
         print(e)
         return None
-    df['class'] = df['class'].str.replace(r'.*?(\d+).*', r'\1', regex=True).astype('category')
+    df['class'] = df['class'].str.replace(r'.*?(\d+).*', r'\1', regex=True)
     df['acc'] = calculate_summed_magnitude(df, 'acc_')
 
+    df = convert_dash_to_nan(df)
     return df

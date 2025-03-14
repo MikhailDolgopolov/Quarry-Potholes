@@ -1,6 +1,5 @@
 import pandas as pd
-from data_read import read_raw_dirdata, read_new_points
+from data_read import read_raw_dirdata, read_new_points, load_prepared
 
-df = read_raw_dirdata('data/routes/route3', r'[0-9]{1,3}_w', read_new_points)
+df = load_prepared('data/classes10')
 # print(df)
-print(df[0].columns)
