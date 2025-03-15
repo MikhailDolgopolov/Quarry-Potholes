@@ -65,7 +65,7 @@ def preprocess_data(
 if __name__ == "__main__":
     tracks = range(1, 36)
     dir_path_func = lambda n: f"data/routes/route{n}"
-    ws = 10
+    ws = 7
     transformer = RollingWindowTransformer({
         'rot_X': ['', 'var'],
         'rot_Y': ['', 'var', ],

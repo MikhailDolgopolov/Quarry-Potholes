@@ -7,3 +7,28 @@ gam10 Classification Report:
     accuracy                           0.78    155430
    macro avg       0.76      0.78      0.77    155430
 weighted avg       0.79      0.78      0.78    155430
+
+
+[(frozenset({('tol', 0.001), ('lam', 30), ('n_splines', 10)}),
+  17.528300134732774),
+ (frozenset({('lam', 30), ('n_splines', 10), ('tol', 0.01)}),
+  17.528300843865512),
+ (frozenset({('tol', 0.001), ('n_splines', 10), ('lam', 50)}),
+  17.581520959503454),
+ (frozenset({('n_splines', 10), ('tol', 0.01), ('lam', 50)}),
+  17.581546766580527),
+ (frozenset({('tol', 0.001), ('lam', 70), ('n_splines', 10)}),
+  17.62548809664343)]
+
+
+  Top results:
+[(frozenset({('tol', 0.01), ('n_splines', 12), ('lam', 30)}),
+  17.47586287183778),
+ (frozenset({('tol', 0.01), ('lam', 40), ('n_splines', 12)}),
+  17.487800726558344),
+ (frozenset({('tol', 0.01), ('lam', 30), ('n_splines', 10)}),
+  17.54762487562602),
+ (frozenset({('tol', 0.01), ('lam', 40), ('n_splines', 10)}),
+  17.573790108756306),
+ (frozenset({('lam', 50), ('tol', 0.01), ('n_splines', 10)}),
+  17.598667835514096)]
