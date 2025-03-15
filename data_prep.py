@@ -67,12 +67,12 @@ if __name__ == "__main__":
     dir_path_func = lambda n: f"data/routes/route{n}"
     ws = 10
     transformer = RollingWindowTransformer({
-        'rot_X': ['', 'std', 'var', 'range'],
-        'rot_Y': ['', 'std', 'var', 'range'],
-        'acc_X': ['', 'std'],
-        'acc_Z': ['', 'std'],
+        'rot_X': ['', 'var'],
+        'rot_Y': ['', 'var', ],
+        'acc_X': ['', 'std', 'max'],
+        'acc_Z': ['', 'std', 'max'],
         'acc': ['', 'std', 'var', 'max', 'range'],
-        'fb_tilt': ['max', 'std', 'var', 'range'],
+        'fb_tilt': ['max', 'var', 'range'],
         'tilt': ['max', 'var', 'range'],
     }, window_size=ws)
     output_folder = f"data/class{ws}"
