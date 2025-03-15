@@ -60,7 +60,7 @@ def read_raw_dirdata(dir_path: str, csv_pattern: str, func: Callable[[str], pd.D
         return []
 
 
-def load_prepared(folder_path, keep_latlon=False):
+def load_prepared(folder_path, keep_latlon=False, sample_frac=1):
     # Step 2: Load all CSV files into a single DataFrame
     dataframes = []
     for filename in tqdm(os.listdir(folder_path), desc='Loading data'):
@@ -71,7 +71,7 @@ def load_prepared(folder_path, keep_latlon=False):
                 df = df.drop(columns=['lat', 'lon'])
             dataframes.append(df)
 
-    return pd.concat(dataframes, ignore_index=True)
+    return pd.concat(dataframes, ignore_index=True).sample(frac=sample_frac)
 
 def read_new_points(path: str) -> Optional[pd.DataFrame]:
     try:
@@ -100,4 +100,5 @@ def read_new_points(path: str) -> Optional[pd.DataFrame]:
     df['acc'] = calculate_summed_magnitude(df, 'acc_')
 
     df = convert_dash_to_nan(df)
+    df['class'] = df['class'].fillna(0)
     return df

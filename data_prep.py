@@ -71,11 +71,11 @@ if __name__ == "__main__":
         'rot_Y': ['', 'std', 'var', 'range'],
         'acc_X': ['', 'std'],
         'acc_Z': ['', 'std'],
-        # 'acc': ['', 'std', 'var', 'max', 'range'],
-        # 'fb_tilt': ['max', 'std', 'var', 'range'],
-        # 'tilt': ['max', 'var', 'range'],
+        'acc': ['', 'std', 'var', 'max', 'range'],
+        'fb_tilt': ['max', 'std', 'var', 'range'],
+        'tilt': ['max', 'var', 'range'],
     }, window_size=ws)
-    output_folder = f"data/classes{ws}"
+    output_folder = f"data/class{ws}"
 
     # Run preprocessing
     preprocess_data(
