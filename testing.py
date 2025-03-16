@@ -45,16 +45,18 @@ def draw(filename):
         y='prediction',
         hue='class',
         width=0.4,
-        showfliers=False,
+        showfliers=True,
         zorder=1
     )
+    model_name=filename.split("\\")[-1]
     sns.lineplot(x=[0,len(class_order)-1], y=[0,150], zorder=4)
     plt.title(f'{filename}\n{weighted_mae:.1f}')
     plt.tight_layout()
+    # plt.savefig(f'images/{model_name}.png', bbox_inches='tight')
     plt.show()
 
 
-for n in glob.glob('models/*.pkl'):
+for n in glob.glob('models/*GBR*.pkl'):
     draw(n)
 
 
