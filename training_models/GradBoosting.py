@@ -1,6 +1,6 @@
 from sklearn.ensemble import HistGradientBoostingRegressor
 from sklearn.model_selection import ParameterGrid, train_test_split
-from sklearn.metrics import mean_absolute_error
+from sklearn.metrics import mean_absolute_error, mean_squared_error
 from sklearn.utils import compute_sample_weight
 import pandas as pd
 import numpy as np
@@ -34,6 +34,10 @@ def hgbr_grid_search(param_grid: dict, df: pd.DataFrame, target: str, test_frac=
         try:
             model = HistGradientBoostingRegressor(
                 **params,
+                max_iter=200,
+                min_samples_leaf=5,
+                # max_features=0.9,
+                learning_rate=0.6,
                 scoring='neg_mean_absolute_error',
                 random_state=42
             )
@@ -41,7 +45,7 @@ def hgbr_grid_search(param_grid: dict, df: pd.DataFrame, target: str, test_frac=
 
             # Get validation score during training
             train_pred = model.predict(X_train)
-            train_mae = mean_absolute_error(y_train, train_pred, sample_weight=train_weights)
+            train_mse = mean_squared_error(y_train, train_pred, sample_weight=train_weights)
 
             # Test evaluation
             test_pred = model.predict(X_test)
@@ -49,7 +53,7 @@ def hgbr_grid_search(param_grid: dict, df: pd.DataFrame, target: str, test_frac=
 
             return {
                 'params': params,
-                'train_mae': train_mae,
+                'train_mse': train_mse,
                 'test_mae': test_mae,
                 'model': model
             }
@@ -58,41 +62,25 @@ def hgbr_grid_search(param_grid: dict, df: pd.DataFrame, target: str, test_frac=
             return None
 
     # Run parallel evaluations
-    best_test_mae = np.inf
-    best_result = None
     results = []
 
     with Parallel(n_jobs=n_jobs, verbose=10) as parallel:
         jobs = (delayed(train_evaluate)(params) for params in param_combinations)
-        for result in parallel(jobs):
-            if result:
-                results.append(result)
-                if result['test_mae'] < best_test_mae:
-                    best_test_mae = result['test_mae']
-                    best_result = result
+        results = [result for result in parallel(jobs) if result]
 
-    # Save best model
-    if best_result:
-        print(f"\nBest parameters: {best_result['params']}")
-        print(f"Train MAE: {best_result['train_mae']:.2f}")
-        print(f"Test MAE: {best_result['test_mae']:.2f}")
+    # Sort results by test MAE
+    sorted_results = sorted(results, key=lambda x: x['train_mse'])
 
-        model = best_result['model']
-        pstr = ''.join([f'[{k}{v}]' for k, v in best_result['params'].items()])
-        model_name = f"HGBR_{pstr}_{round(best_result['test_mae'])}"
-        model_path = f"models/{model_name}.pkl"
+    # Save top 3 models
+    for idx, result in enumerate(sorted_results[:3], 1):
+        model = result['model']
+        pstr = ''.join([f'[{k}{v}]' for k, v in result['params'].items()])
+        model_name = f"HGBR_{pstr}_top{idx}_{round(result['test_mae'])}.pkl"
 
-        with open(model_path, "wb") as f:
+        with open(f"models/{model_name}", "wb") as f:
             pickle.dump(model, f)
-        print(f"Saved best model to {model_path}")
-
-    # Show top 5 results
-    print("\nTop results:")
-    sorted_results = sorted(results, key=lambda x: x['test_mae'])[:5]
-    pprint([(r['params'], r['test_mae']) for r in sorted_results])
-
+    pprint(sorted_results[:3])
     return sorted_results
-
 
 # Usage example
 if __name__ == "__main__":
@@ -113,10 +101,10 @@ if __name__ == "__main__":
     # }
 
     param_grid = {
-        'max_depth': [6, 8],
-        'min_samples_leaf': [50, 2, 20, 5, 10],
-        'l2_regularization': [0.6, 0.0, 0.1, 0.3, 0.4],
-        # 'loss': ['squared_error', 'absolute_error']
+        'max_depth': [10, 12, 14, 16, None],
+        'max_features': [1.0, 0.9],
+        'l2_regularization': [0.2, 0.3, 0.4, 0.5, 0.6],
+
     }
 
     # Run grid search

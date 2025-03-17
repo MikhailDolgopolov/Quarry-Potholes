@@ -65,7 +65,7 @@ def preprocess_data(
 if __name__ == "__main__":
     tracks = range(1, 36)
     dir_path_func = lambda n: f"data/routes/route{n}"
-    ws = 7
+    target, ws = 'class', 10
     transformer = RollingWindowTransformer({
         'rot_X': ['', 'var'],
         'rot_Y': ['', 'var', ],
@@ -75,13 +75,14 @@ if __name__ == "__main__":
         'fb_tilt': ['max', 'var', 'range'],
         'tilt': ['max', 'var', 'range'],
     }, window_size=ws)
-    output_folder = f"data/class{ws}"
+    output_folder = f"data/{target}{ws}"
 
+    read_func = read_new_points if target=='class' else read_truck_data
     # Run preprocessing
     preprocess_data(
         tracks=tracks,
         transformer=transformer,
         output_folder=output_folder,
         paths_func=dir_path_func,
-        read_func=read_new_points,
+        read_func=read_func,
     )

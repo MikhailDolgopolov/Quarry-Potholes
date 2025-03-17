@@ -1,7 +1,6 @@
 import glob
 import pickle
 import pandas as pd
-from pygam import PoissonGAM
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.metrics import mean_absolute_error
@@ -13,9 +12,7 @@ target = 'class'
 filename='models/GBR[lr0.1][depth4]_[ws10]-balanced24.pkl'
 df = load_prepared(f'data/{target}10', sample_frac=0.5)
 X, y_test = df.drop(columns=[target]), df[target]
-# with open(filename, "rb") as f:
-#     model = pickle.load(f)
-# y_pred = model.predict(X)
+
 
 # Residual plot
 
