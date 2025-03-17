@@ -32,7 +32,7 @@ if __name__ == '__main__':
     recalls = []
     f1s = []
     accuracies = []
-
+    sample_weights=None
     for threshold in tqdm(thresholds):
         y_pred = (y_scores >= threshold).astype(int)
         precisions.append(precision_score(y_test, y_pred, sample_weight=sample_weights, zero_division=0))
@@ -57,7 +57,7 @@ if __name__ == '__main__':
 
     plt.xlabel('Score Threshold')
     plt.ylabel('Metric Score')
-    plt.title('Threshold Tuning for Continuous Scores (Weighted)')
+    plt.title('Threshold Tuning for Continuous Scores')
     plt.legend()
     plt.grid(True)
     plt.show()

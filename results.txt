@@ -8,17 +8,25 @@ gam10 Classification Report:
    macro avg       0.76      0.78      0.77    155430
 weighted avg       0.79      0.78      0.78    155430
 
+Tresholded (17.5) HGBR (Weighted)
+              precision    recall  f1-score   support
 
-[(frozenset({('tol', 0.001), ('lam', 30), ('n_splines', 10)}),
-  17.528300134732774),
- (frozenset({('lam', 30), ('n_splines', 10), ('tol', 0.01)}),
-  17.528300843865512),
- (frozenset({('tol', 0.001), ('n_splines', 10), ('lam', 50)}),
-  17.581520959503454),
- (frozenset({('n_splines', 10), ('tol', 0.01), ('lam', 50)}),
-  17.581546766580527),
- (frozenset({('tol', 0.001), ('lam', 70), ('n_splines', 10)}),
-  17.62548809664343)]
+     Class 0       0.86      0.60      0.71 23314.5
+     Class 1       0.69      0.90      0.79 23314.5
+
+    accuracy                           0.75 46629
+   macro avg       0.78      0.75      0.75 46629
+weighted avg       0.78      0.75      0.75 46629
+
+Tresholded (28) HGBR (Un-weighted)
+              precision    recall  f1-score   support
+
+     Class 0       0.86      0.76      0.81     29752
+     Class 1       0.65      0.79      0.71     16877
+
+    accuracy                           0.77     46629
+   macro avg       0.76      0.77      0.76     46629
+weighted avg       0.79      0.77      0.77     46629
 
 
   Top results:
