@@ -4,10 +4,18 @@ from typing import Callable
 import pandas as pd
 from tqdm import tqdm
 
-# Assuming these are defined elsewhere
 from Transformer import RollingWindowTransformer
-from data_read import read_raw_dirdata, read_truck_data, read_new_points
+from exploration.data_read import read_truck_data, read_raw_dirdata, read_new_points
 
+current_transformer = RollingWindowTransformer({
+        'rot_X': ['', 'var'],
+        'rot_Y': ['', 'var', ],
+        'acc_X': ['', 'std', 'max'],
+        'acc_Z': ['', 'std', 'max'],
+        'acc': ['', 'std', 'var', 'max', 'range'],
+        'fb_tilt': ['max', 'var', 'range'],
+        'tilt': ['max', 'var', 'range'],
+    }, window_size=10)
 
 def add_stats(frame: pd.DataFrame) -> pd.DataFrame:
     """Add statistical features to the DataFrame."""
@@ -24,7 +32,7 @@ def preprocess_data(
         dir_pattern=r'[0-9]{1,3}_w',
 ):
     """
-    Preprocess data with flexible transformer, output folder, and dir reading function.
+    Preprocess data with flexible current_transformer, output folder, and dir reading function.
 
     Args:
         tracks: Iterable of track IDs (e.g., range(1, 36)).
@@ -39,9 +47,10 @@ def preprocess_data(
     num_tracks = []
 
     # Process each directory
+    mould = lambda x: transformer.roll_data(x) if transformer is not None else x
     for dir_name in tqdm(dir_names, desc="Processing paths"):
         new_path = read_raw_dirdata(dir_name, dir_pattern, read_func)
-        rolled_new_paths = [transformer.roll_data(df) for df in new_path if not df.empty]
+        rolled_new_paths = [mould(df) for df in new_path if not df.empty]
 
         routeID = Path(dir_name).name
         if rolled_new_paths:  # Only process if there’s at least one non-empty DataFrame
@@ -65,23 +74,16 @@ def preprocess_data(
 if __name__ == "__main__":
     tracks = range(1, 36)
     dir_path_func = lambda n: f"data/routes/route{n}"
-    target, ws = 'class', 10
-    transformer = RollingWindowTransformer({
-        'rot_X': ['', 'var'],
-        'rot_Y': ['', 'var', ],
-        'acc_X': ['', 'std', 'max'],
-        'acc_Z': ['', 'std', 'max'],
-        'acc': ['', 'std', 'var', 'max', 'range'],
-        'fb_tilt': ['max', 'var', 'range'],
-        'tilt': ['max', 'var', 'range'],
-    }, window_size=ws)
+    target, ws = 'raw', 0
+
     output_folder = f"data/{target}{ws}"
 
-    read_func = read_new_points if target=='class' else read_truck_data
+    read_func = read_truck_data if target=='hole' else read_new_points
+    t = None if target=='raw' else current_transformer
     # Run preprocessing
     preprocess_data(
         tracks=tracks,
-        transformer=transformer,
+        transformer=t,
         output_folder=output_folder,
         paths_func=dir_path_func,
         read_func=read_func,

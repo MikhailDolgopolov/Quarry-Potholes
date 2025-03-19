@@ -1,12 +1,10 @@
 import pickle
 
-import numpy as np
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_absolute_error
 from sklearn.model_selection import train_test_split
-from sklearn.utils import compute_class_weight, compute_sample_weight
 
-from data_read import load_prepared
+from exploration.data_read import load_prepared
 
 if __name__ == "__main__":
     from sklearn.utils.class_weight import compute_sample_weight

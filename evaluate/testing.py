@@ -1,4 +1,3 @@
-import glob
 import pickle
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -6,15 +5,7 @@ import seaborn as sns
 from sklearn.metrics import mean_absolute_error
 from sklearn.utils import compute_sample_weight
 
-from data_read import load_prepared
-
-target = 'class'
-filename='models/GBR[lr0.1][depth4]_[ws10]-balanced24.pkl'
-df = load_prepared(f'data/{target}10', sample_frac=0.5)
-X, y_test = df.drop(columns=[target]), df[target]
-
-
-# Residual plot
+from exploration.data_read import get_columns
 
 
 def draw(filename):
@@ -52,8 +43,10 @@ def draw(filename):
     # plt.savefig(f'images/{model_name}.png', bbox_inches='tight')
     plt.show()
 
+if __name__ == '__main__':
+    # target = 'class'
+    # filename = 'models/GBR[lr0.1][depth4]_[ws10]-balanced24.pkl'
+    # df = load_prepared(f'data/{target}10', sample_frac=0.5)
+    # X, y_test = df.drop(columns=[target]), df[target]
 
-for n in glob.glob('models/*GBR*.pkl'):
-    draw(n)
-
-
+    print(get_columns('data/class10'))

@@ -4,7 +4,7 @@ import numpy as np
 from sklearn.utils import compute_sample_weight
 from tqdm import tqdm
 
-from data_read import load_prepared
+from exploration.data_read import load_prepared
 
 if __name__ == '__main__':
     df = load_prepared(f'data/hole10', sample_frac=0.3)
@@ -16,7 +16,7 @@ if __name__ == '__main__':
         model = pickle.load(f)
 
     import matplotlib.pyplot as plt
-    from sklearn.metrics import precision_recall_curve, f1_score, accuracy_score, precision_score, recall_score, \
+    from sklearn.metrics import f1_score, accuracy_score, precision_score, recall_score, \
     classification_report
 
     # Get predicted probabilities from your model

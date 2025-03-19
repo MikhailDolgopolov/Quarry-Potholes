@@ -28,15 +28,22 @@ Tresholded (28) HGBR (Un-weighted)
    macro avg       0.76      0.77      0.76     46629
 weighted avg       0.79      0.77      0.77     46629
 
+Oneway:
+{'cluster_samples': 15,
+             'eps': 0.035,
+             'hole_threshold': 25,
+             'positive_class_ratio': 0.8,
+             'reports': 20},
+             Without clustering: result_raw['test_mae']=29.26136672654606
+With clustering: result_clustered_data['test_mae']=36.65817906738376
 
-  Top results:
-[(frozenset({('tol', 0.01), ('n_splines', 12), ('lam', 30)}),
-  17.47586287183778),
- (frozenset({('tol', 0.01), ('lam', 40), ('n_splines', 12)}),
-  17.487800726558344),
- (frozenset({('tol', 0.01), ('lam', 30), ('n_splines', 10)}),
-  17.54762487562602),
- (frozenset({('tol', 0.01), ('lam', 40), ('n_splines', 10)}),
-  17.573790108756306),
- (frozenset({('lam', 50), ('tol', 0.01), ('n_splines', 10)}),
-  17.598667835514096)]
+
+Other:
+{'cluster_samples': 5,
+             'eps': 0.02,
+             'hole_threshold': 25,
+             'positive_class_ratio': 0.5,
+             'reports': 10}
+Without clustering: result_raw['test_mae']=31.72412274632615
+With clustering: result_clustered_data['test_mae']=38.950664456389426
+

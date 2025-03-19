@@ -1,7 +1,6 @@
 import glob
 import os
 import pickle
-import re
 from typing import Tuple
 
 import numpy as np
@@ -10,10 +9,11 @@ import matplotlib.pyplot as plt
 from itertools import product
 
 from sklearn.linear_model import LinearRegression
-from sklearn.metrics import mean_squared_error, mean_absolute_error
+from sklearn.metrics import mean_squared_error
 from tqdm import tqdm
 
-from data_read import load_prepared
+from exploration.data_read import load_prepared
+
 
 # filename='models/HGBR_[l2_regularization0.5][losssquared_error][max_depth6][min_samples_leaf100]_23.pkl'
 # out_fr = 0.1
@@ -21,9 +21,9 @@ from data_read import load_prepared
 
 
 def evaluate_classification(X, y_test, filename, main_fr=0.5, out_fr=0.1)->Tuple[float, pd.DataFrame, LinearRegression]:
-
     with open(filename, "rb") as f:
         model = pickle.load(f)
+
     y_pred = model.predict(X)
     results_df = pd.DataFrame({
         'true_class': y_test,
@@ -191,15 +191,25 @@ def manage_models(models_path='models/*.pkl'):
 
 if __name__ == '__main__':
     target = 'class'
-    df = load_prepared(f'data/class10', sample_frac=0.2)
+    df = load_prepared(f'data/{target}10', keep_latlon=True, sample_frac=1)
+    col='rel'
+    params = {'cluster_samples': 20,
+             'eps': 0.01,
+             'hole_threshold': 30,
+             'positive_class_ratio': 0.3,
+             'reports': 30}
+    # df = filter_reliable_potholes(df, **params, reliable_col=col)
+    # df = df[df[col]]
+    df=df.drop(columns=[col, 'lat', 'lon'], errors='ignore')
     X, y_test = df.drop(columns=[target]), df[target]
 
-    manage_models()
+    # manage_models()
 
     models_path = 'models/*.pkl'
-    model_files = glob.glob(models_path)
+    model_files = glob.glob(models_path)[:1]
+
     for f in model_files:
-        score, stats, reg = evaluate_classification(X, y_test, f)
+        score, stats, reg = evaluate_classification(X, y_test, filename=f)
         draw_linear(stats, reg, score, name=f)
 
 

@@ -59,9 +59,14 @@ def read_raw_dirdata(dir_path: str, csv_pattern: str, func: Callable[[str], pd.D
     except:
         return []
 
+def get_columns(folder_path: str, keep_latlon=False):
+    file_path = glob.glob(f'{folder_path}/*.csv')[0]
+    df = pd.read_csv(file_path, sep=';', dtype=np.float32)
+    if not keep_latlon:
+        df = df.drop(columns=['lat', 'lon'])
+    return df.columns
 
-def load_prepared(folder_path, keep_latlon=False, sample_frac=1):
-    # Step 2: Load all CSV files into a single DataFrame
+def load_prepared(folder_path:str, keep_latlon=False, sample_frac=1)->pd.DataFrame:
     dataframes = []
     for filename in tqdm(os.listdir(folder_path), desc='Loading data'):
         if filename.endswith('.csv'):

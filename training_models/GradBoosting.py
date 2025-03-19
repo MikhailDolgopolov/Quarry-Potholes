@@ -1,16 +1,60 @@
+import numpy as np
 from sklearn.ensemble import HistGradientBoostingRegressor
 from sklearn.model_selection import ParameterGrid, train_test_split
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 from sklearn.utils import compute_sample_weight
 import pandas as pd
-import numpy as np
 import pickle
-import os
-from tqdm import tqdm
 from joblib import Parallel, delayed
 from pprint import pprint
 
-from data_read import load_prepared
+from exploration.data_read import load_prepared
+
+
+def train_evaluate(params, X_t, y_t, X_e, y_e, train_weights=None, eval_weights=None):
+    if train_weights is None:
+        train_weights = compute_sample_weight('balanced', y_t)
+    if eval_weights is None:
+        eval_weights = compute_sample_weight('balanced', y_e)
+    if params is None:
+        params = dict()
+
+    try:
+        # Get default parameters for comparison
+        default_params = HistGradientBoostingRegressor().get_params()
+
+        # Create model with merged parameters
+        model = HistGradientBoostingRegressor(
+            **params,
+            max_iter=200,
+            min_samples_leaf=5,
+            learning_rate=0.6,
+            scoring='neg_mean_absolute_error',
+            random_state=42
+        )
+        model.fit(X_t, y_t, sample_weight=train_weights)
+
+        # Identify non-default parameters
+        final_params = model.get_params()
+        non_default_params = {
+            k: v for k, v in final_params.items()
+            if str(v) != str(default_params.get(k, None))
+        }
+
+        # Evaluation metrics
+        train_mse = mean_squared_error(y_t, model.predict(X_t))
+        test_pred = model.predict(X_e)
+        test_mae = mean_absolute_error(y_e, test_pred, sample_weight=eval_weights)
+
+        return {
+            'params': non_default_params,  # Return only non-default params
+            'train_mse': train_mse,
+            'test_mae': test_mae,
+            'model': model
+        }
+    except Exception as e:
+        print(f"Error with params {params}: {str(e)}")
+        return None
 
 
 def hgbr_grid_search(param_grid: dict, df: pd.DataFrame, target: str, test_frac=0.2, n_jobs=8):
@@ -25,47 +69,11 @@ def hgbr_grid_search(param_grid: dict, df: pd.DataFrame, target: str, test_frac=
     X_train, y_train = train_df.drop(columns=[target]), train_df[target]
     X_test, y_test = test_df.drop(columns=[target]), test_df[target]
 
-    # Precompute sample weights
     train_weights = compute_sample_weight('balanced', y_train)
     test_weights = compute_sample_weight('balanced', y_test)
 
-    def train_evaluate(params):
-        """Train and evaluate a single model"""
-        try:
-            model = HistGradientBoostingRegressor(
-                **params,
-                max_iter=200,
-                min_samples_leaf=5,
-                # max_features=0.9,
-                learning_rate=0.6,
-                scoring='neg_mean_absolute_error',
-                random_state=42
-            )
-            model.fit(X_train, y_train, sample_weight=train_weights)
-
-            # Get validation score during training
-            train_pred = model.predict(X_train)
-            train_mse = mean_squared_error(y_train, train_pred, sample_weight=train_weights)
-
-            # Test evaluation
-            test_pred = model.predict(X_test)
-            test_mae = mean_absolute_error(y_test, test_pred, sample_weight=test_weights)
-
-            return {
-                'params': params,
-                'train_mse': train_mse,
-                'test_mae': test_mae,
-                'model': model
-            }
-        except Exception as e:
-            print(f"Error with params {params}: {str(e)}")
-            return None
-
-    # Run parallel evaluations
-    results = []
-
     with Parallel(n_jobs=n_jobs, verbose=10) as parallel:
-        jobs = (delayed(train_evaluate)(params) for params in param_combinations)
+        jobs = (delayed(train_evaluate)(params, X_train, y_train, X_test, y_test, train_weights, test_weights) for params in param_combinations)
         results = [result for result in parallel(jobs) if result]
 
     # Sort results by test MAE
@@ -101,9 +109,10 @@ if __name__ == "__main__":
     # }
 
     param_grid = {
-        'max_depth': [10, 12, 14, 16, None],
-        'max_features': [1.0, 0.9],
-        'l2_regularization': [0.2, 0.3, 0.4, 0.5, 0.6],
+        # 'max_depth': [10, 12, 14, 16, None],
+        'tol': [1e-2],
+        # 'max_features': [1.0, 0.9],
+        'l2_regularization': [0.3, 0.5],
 
     }
 

@@ -7,7 +7,7 @@ from pygam import LogisticGAM
 from sklearn.metrics import classification_report
 from sklearn.model_selection import train_test_split
 from scipy.special import expit
-from data_read import load_prepared
+from exploration.data_read import load_prepared
 
 def get_model(ws: int, X_train: pd.DataFrame, y_train: pd.Series, train_new=False) -> LogisticGAM:
     """

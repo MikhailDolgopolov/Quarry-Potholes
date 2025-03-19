@@ -1,8 +1,15 @@
+import os
+import pickle
+import random
+
 import numpy as np
 
 import re
 
 import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.utils import Interval
+from sklearn.utils._param_validation import RealNotInt
 
 
 def calculate_summed_magnitude(df, prefix):
@@ -43,3 +50,46 @@ def convert_dash_to_nan(df):
                 # Convert the entire column to numeric
                 df[col] = pd.to_numeric(df[col])
     return df
+
+def train_split_by_column(df, y_column:str, test_frac: Interval(RealNotInt, 0, 1, closed="neither")):
+    train_df, test_df = train_test_split(df, test_size=test_frac)
+    X_train, y_train = train_df.drop(columns=[y_column]), train_df[y_column]
+    X_test, y_test = test_df.drop(columns=[y_column]), test_df[y_column]
+    return X_train, y_train, X_test, y_test
+
+def load_pickle(path):
+    with open(path, 'rb') as f:
+        return pickle.load(f)
+
+
+def discretize_to_levels(arr, levels):
+    """
+    Round array values to the nearest specified levels
+
+    Args:
+        arr: Input array (any shape)
+        levels: Array of target discrete values
+
+    Returns:
+        Discretized array with same shape as input
+    """
+    levels = np.asarray(levels)
+    # Find closest level for each element
+    indices = np.argmin(np.abs(arr[..., np.newaxis] - levels), axis=-1)
+    return levels[indices]
+
+
+def select_random_file(folder_path):
+    """Select a random file from a folder"""
+    try:
+        # List all files in the folder
+        files = [f for f in os.listdir(folder_path) if os.path.isfile(os.path.join(folder_path, f))]
+        if not files:
+            raise FileNotFoundError(f"No files found in {folder_path}")
+
+        # Select a random file
+        selected_file = random.choice(files)
+        return os.path.join(folder_path, selected_file)
+    except Exception as e:
+        print(f"Error selecting file: {e}")
+        return None
