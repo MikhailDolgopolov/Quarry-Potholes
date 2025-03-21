@@ -10,6 +10,7 @@ from itertools import product
 
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_squared_error
+from sklearn.utils import compute_sample_weight
 from tqdm import tqdm
 
 from exploration.data_read import load_prepared
@@ -63,15 +64,14 @@ def evaluate_classification(X, y_test, filename, main_fr=0.5, out_fr=0.1)->Tuple
     ).sort_values(['true_class'])
     classes = np.array(points['true_class']).reshape(-1, 1)
     predicted_edges = points['y']
-    weights = points['count']  # Get weights from melted data
+    weights = compute_sample_weight('balanced', y_test)
     # Fit weighted regression
     reg = LinearRegression()
     # reg.fit(classes, predicted_edges, sample_weight=weights)
     reg.fit(classes, predicted_edges)
     linear_result = reg.predict(classes)
-    RMSE = np.sqrt(mean_squared_error(linear_result, predicted_edges, sample_weight=weights))
+    RMSE = np.sqrt(mean_squared_error(y_test, y_pred, sample_weight=weights))
     return RMSE, quantile_stats, reg
-
 
 def draw_linear(quantile_df,linreg:LinearRegression, rmse, name='Linearity'):
     fig, ax = plt.subplots(figsize=(12, 7))
@@ -193,11 +193,6 @@ if __name__ == '__main__':
     target = 'class'
     df = load_prepared(f'data/{target}10', keep_latlon=True, sample_frac=1)
     col='rel'
-    params = {'cluster_samples': 20,
-             'eps': 0.01,
-             'hole_threshold': 30,
-             'positive_class_ratio': 0.3,
-             'reports': 30}
     # df = filter_reliable_potholes(df, **params, reliable_col=col)
     # df = df[df[col]]
     df=df.drop(columns=[col, 'lat', 'lon'], errors='ignore')
@@ -206,7 +201,7 @@ if __name__ == '__main__':
     # manage_models()
 
     models_path = 'models/*.pkl'
-    model_files = glob.glob(models_path)[:1]
+    model_files = glob.glob(models_path)
 
     for f in model_files:
         score, stats, reg = evaluate_classification(X, y_test, filename=f)

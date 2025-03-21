@@ -44,6 +44,14 @@ def read_truck_data(path: str) -> Optional[pd.DataFrame]:
         return None
     df = filtered_df.rename(columns=names_map)
 
+    recentered = ['acc_X', 'acc_Y', 'acc_Z', 'fb_tilt', 'tilt']
+
+    for fix in recentered:
+        mean = df[fix].mean()
+        if abs(round(mean)) > 0:
+            df[fix] = df[fix] - round(mean)
+            # print(fix)
+
     df['hole'] = np.where(df['hole']>0, 1, 0)
 
     df['acc'] = calculate_summed_magnitude(df, 'acc_')
@@ -75,7 +83,7 @@ def load_prepared(folder_path:str, keep_latlon=False, sample_frac=1)->pd.DataFra
             if not keep_latlon:
                 df = df.drop(columns=['lat', 'lon'])
             dataframes.append(df)
-
+    print(len(dataframes))
     return pd.concat(dataframes, ignore_index=True).sample(frac=sample_frac)
 
 def read_new_points(path: str) -> Optional[pd.DataFrame]:
@@ -101,6 +109,15 @@ def read_new_points(path: str) -> Optional[pd.DataFrame]:
         print(f"Trouble with {path}:")
         print(e)
         return None
+
+    recentered = ['acc_X', 'acc_Y', 'acc_Z', 'fb_tilt', 'tilt']
+
+    for fix in recentered:
+        mean = df[fix].mean()
+        if abs(round(mean))>0:
+            df[fix] = df[fix] - round(mean)
+            # print(fix)
+
     df['class'] = df['class'].str.replace(r'.*?(\d+).*', r'\1', regex=True)
     df['acc'] = calculate_summed_magnitude(df, 'acc_')
 

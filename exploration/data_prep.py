@@ -74,7 +74,7 @@ def preprocess_data(
 if __name__ == "__main__":
     tracks = range(1, 36)
     dir_path_func = lambda n: f"data/routes/route{n}"
-    target, ws = 'raw', 0
+    target, ws = 'class', 10
 
     output_folder = f"data/{target}{ws}"
 

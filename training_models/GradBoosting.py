@@ -26,29 +26,27 @@ def train_evaluate(params, X_t, y_t, X_e, y_e, train_weights=None, eval_weights=
         # Create model with merged parameters
         model = HistGradientBoostingRegressor(
             **params,
-            max_iter=200,
-            min_samples_leaf=5,
-            learning_rate=0.6,
+            max_iter=100,
+            # learning_rate=0.6,
             scoring='neg_mean_absolute_error',
             random_state=42
         )
         model.fit(X_t, y_t, sample_weight=train_weights)
 
         # Identify non-default parameters
-        final_params = model.get_params()
         non_default_params = {
-            k: v for k, v in final_params.items()
+            k: v for k, v in params.items()
             if str(v) != str(default_params.get(k, None))
         }
 
         # Evaluation metrics
-        train_mse = mean_squared_error(y_t, model.predict(X_t))
         test_pred = model.predict(X_e)
         test_mae = mean_absolute_error(y_e, test_pred, sample_weight=eval_weights)
+        test_mse = mean_squared_error(y_e, test_pred, sample_weight=eval_weights)
 
         return {
             'params': non_default_params,  # Return only non-default params
-            'train_mse': train_mse,
+            'test_mse': test_mse,
             'test_mae': test_mae,
             'model': model
         }
@@ -77,10 +75,10 @@ def hgbr_grid_search(param_grid: dict, df: pd.DataFrame, target: str, test_frac=
         results = [result for result in parallel(jobs) if result]
 
     # Sort results by test MAE
-    sorted_results = sorted(results, key=lambda x: x['train_mse'])
+    sorted_results = sorted(results, key=lambda x: x['test_mse'])
 
     # Save top 3 models
-    for idx, result in enumerate(sorted_results[:3], 1):
+    for idx, result in enumerate(sorted_results[:5], 1):
         model = result['model']
         pstr = ''.join([f'[{k}{v}]' for k, v in result['params'].items()])
         model_name = f"HGBR_{pstr}_top{idx}_{round(result['test_mae'])}.pkl"
@@ -97,7 +95,7 @@ if __name__ == "__main__":
 
     ws = 10
     target = 'class'
-    big_df = load_prepared(f"data/class{ws}", sample_frac=1)
+    big_df = load_prepared(f"data/{target}{ws}", sample_frac=0.5)
 
     # Define parameter grid for boosting
     # param_grid = {
@@ -109,11 +107,13 @@ if __name__ == "__main__":
     # }
 
     param_grid = {
-        # 'max_depth': [10, 12, 14, 16, None],
-        'tol': [1e-2],
+        'max_depth': [12, 14, None],
+        'tol': [1e-2, 1e-4, 1e-6],
         # 'max_features': [1.0, 0.9],
-        'l2_regularization': [0.3, 0.5],
-
+        'learning_rate': [0.2],
+        'l2_regularization': [0.3, 0.1, 0.5,],
+        'min_samples_leaf': [5, 10, 20, 40],
+        'loss': ['absolute_error', 'squared_error'],
     }
 
     # Run grid search
@@ -121,6 +121,6 @@ if __name__ == "__main__":
         param_grid=param_grid,
         df=big_df,
         target=target,
-        test_frac=0.1,
-        n_jobs=8
+        test_frac=0.3,
+        n_jobs=4
     )
