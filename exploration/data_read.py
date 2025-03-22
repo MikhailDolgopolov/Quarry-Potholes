@@ -83,7 +83,6 @@ def load_prepared(folder_path:str, keep_latlon=False, sample_frac=1)->pd.DataFra
             if not keep_latlon:
                 df = df.drop(columns=['lat', 'lon'])
             dataframes.append(df)
-    print(len(dataframes))
     return pd.concat(dataframes, ignore_index=True).sample(frac=sample_frac)
 
 def read_new_points(path: str) -> Optional[pd.DataFrame]:

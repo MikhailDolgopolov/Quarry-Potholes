@@ -1,17 +1,15 @@
 import glob
-import os
 import pickle
 from typing import Tuple
 
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from itertools import product
+import seaborn as sns
 
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_squared_error
 from sklearn.utils import compute_sample_weight
-from tqdm import tqdm
 
 from exploration.data_read import load_prepared
 
@@ -21,190 +19,83 @@ from exploration.data_read import load_prepared
 # main_fr = 0.5
 
 
-def evaluate_classification(X, y_test, filename, main_fr=0.5, out_fr=0.1)->Tuple[float, pd.DataFrame, LinearRegression]:
+def evaluate_classification(X, y_test, filename) -> Tuple[pd.DataFrame, LinearRegression, float]:
+    # Load the model
     with open(filename, "rb") as f:
         model = pickle.load(f)
 
+    # Make predictions
     y_pred = model.predict(X)
+
+    # Create a dataframe with true and predicted values
     results_df = pd.DataFrame({
         'true_class': y_test,
         'prediction': y_pred
     })
-    quantile_stats = (
-        results_df.groupby('true_class', observed=False)['prediction']
-        .agg(
-            edge1=lambda x: x.quantile(out_fr),
-            strip1=lambda x: x.quantile(0.5 - main_fr * 0.5),
-            mean=lambda x: x.mean(),
-            strip2=lambda x: x.quantile(0.5 + main_fr * 0.5),
-            edge2=lambda x: x.quantile(1 - out_fr),
-            count=lambda x: x.count()
-        )
-        .reset_index()
-        .sort_values('true_class')
-    )
-    short, long = 'short', 'long'
-    for i in [1, 2]:
-        quantile_stats[f'{long}{i}'] = quantile_stats[f'edge{i}'] - quantile_stats[f'strip{i}']
-        quantile_stats[f'{short}{i}'] = quantile_stats[f'strip{i}'] - quantile_stats[f'mean']
-    cols = [''.join(t) for t in list(product([short, long], map(str, [1, 2])))]
-    point_cols = []
-    for i in range(4):
-        quantile_stats[f'point{i + 1}'] = quantile_stats['mean'] + quantile_stats[cols[i]]
-        point_cols.append(f'point{i + 1}')
-    # print(quantile_stats)
-    cols.extend([''.join(t) for t in list(product(['strip', 'edge'], map(str, [1, 2])))])
-    wide = quantile_stats.drop(columns=cols)
-    points = pd.melt(
-        wide,
-        id_vars=['true_class', 'count'],
-        value_vars=point_cols,
-        var_name='quantile',
-        value_name='y'
-    ).sort_values(['true_class'])
-    classes = np.array(points['true_class']).reshape(-1, 1)
-    predicted_edges = points['y']
-    weights = compute_sample_weight('balanced', y_test)
-    # Fit weighted regression
-    reg = LinearRegression()
-    # reg.fit(classes, predicted_edges, sample_weight=weights)
-    reg.fit(classes, predicted_edges)
-    linear_result = reg.predict(classes)
-    RMSE = np.sqrt(mean_squared_error(y_test, y_pred, sample_weight=weights))
-    return RMSE, quantile_stats, reg
 
-def draw_linear(quantile_df,linreg:LinearRegression, rmse, name='Linearity'):
+    # Compute RMSE with balanced sample weights
+    weights = compute_sample_weight('balanced', y_test)
+    rmse = np.sqrt(mean_squared_error(y_test, y_pred, sample_weight=weights))
+
+    # Fit linear regression on all true vs. predicted points
+    reg = LinearRegression()
+    reg.fit(y_test.values.reshape(-1, 1), y_pred, sample_weight=weights)
+
+    return results_df, reg, rmse
+
+
+def draw_linear(results_df, linreg, rmse, name='Linearity'):
+    unique_classes = np.sort(results_df['true_class'].unique())
+    #
+    # for value in unique_classes:
+    #     fig, ax = plt.subplots(figsize=(12, 7))
+    #     dist = results_df[results_df['true_class']==value]
+    #     sns.histplot(dist['prediction'])
+    #     plt.title(f'Distribution on class {value}')
+    #     # plt.show()
+    #     plt.savefig(f'images/distrs/model{round(rmse)}_class{value}.png')
+    #     plt.close(fig)
+    # Create figure
     fig, ax = plt.subplots(figsize=(12, 7))
 
-    # Custom boxplot parameters
-    boxprops = dict(facecolor='skyblue', linewidth=2)
-    whiskerprops = dict(color='navy', linestyle='--')
-    medianprops = dict(color='gold', linewidth=2)
 
-    # quantile_df = quantile_df.set_index('true_class')
-    # Create custom boxplots using your quantiles
-    for idx, row in quantile_df.iterrows():
-        # Box from strip1 to strip2
-        ax.fill_between(
-            [row['true_class'] - 10,
-             row['true_class'] + 10],
-            row['strip1'],
-            row['strip2'],
-            **boxprops
-        )
+    # Prepare data for boxplots: list of predictions for each true_class
+    boxplot_data = [results_df[results_df['true_class'] == cls]['prediction'].values
+                    for cls in unique_classes]
 
-        # Median line
-        ax.hlines(
-            row['mean'],
-            row['true_class'] - 10,
-            row['true_class'] + 10,
-            **medianprops
-        )
+    # Plot boxplots at the actual true_class positions
+    ax.violinplot(boxplot_data, positions=unique_classes, widths=10, showmeans=True, showmedians=True)
 
-        # Whiskers
-        ax.vlines(
-            row['true_class'],
-            row['edge1'],
-            row['edge2'],
-            **whiskerprops
-        )
-
-    # Add regression line
-    x_range = np.linspace(quantile_df['true_class'].min(),
-                          quantile_df['true_class'].max(), 100)
-    ax.plot(x_range, linreg.predict(x_range.reshape(-1, 1)),
-            'r--', lw=2, label=f'y = {linreg.coef_[0]:.2f}x + {linreg.intercept_:.2f}')
+    # Add regression line over the actual true_class range
+    x_min, x_max = unique_classes.min(), unique_classes.max()
+    x_range = np.linspace(x_min, x_max, 100)  # Smooth line across the range
+    ax.plot(x_range, linreg.predict(x_range.reshape(-1, 1)), 'r--', lw=2,
+            # label=f'y = {linreg.coef_[0]:.2f}x + {linreg.intercept_:.2f}'
+            )
 
     # Formatting
     ax.set_xlabel('True Class', fontsize=12)
     ax.set_ylabel('Predicted Value', fontsize=12)
-    ax.set_title(f'{name} Evaluation\nRMSE: {rmse}', fontsize=14)
-    ax.legend()
-    plt.xticks(quantile_df['true_class'])
+    ax.set_title(f'{name} Evaluation\nRMSE: {rmse:.4f}', fontsize=14)
+    plt.xlim([x_min-20, x_max+20])
     plt.grid(True, alpha=0.3)
     plt.tight_layout()
     plt.show()
+    plt.close(fig)
 
-
-def manage_models(models_path='models/*.pkl'):
-    model_files = glob.glob(models_path)
-    thresholds = np.arange(0.3, 0.7, 0.04)
-    results = {}
-
-    for model_path in tqdm(model_files):
-        # print(type(model_path))
-
-        model_name = os.path.basename(model_path).split('\\')[0]
-        results[model_name] = []
-
-        for i in thresholds:
-            rmse, _, _ = evaluate_classification(X, y_test, model_path, i)
-            results[model_name].append(rmse)
-
-    mins = {n: np.min(score) for n, score in results.items()}
-    # Rank models by their minimum RMSE (best to worst)
-    sorted_mins = sorted(mins.items(), key=lambda x: x[1])
-
-    # Print model rankings
-    print("\nModel Rankings (Best to Worst):")
-    print("Rank | Model Name".ljust(40) + " | Min RMSE")
-    print("-" * 55)
-    for rank, (model_name, min_score) in enumerate(sorted_mins, 1):
-        print(f"{rank:4} | {model_name[:35]:35} | {min_score:.4f}")
-
-    # Get user input for deletion
-    try:
-        num_to_delete = int(input("\nEnter number of worst models to delete (0 to cancel): "))
-        if num_to_delete <= 0:
-            return
-    except ValueError:
-        print("Invalid input. No models deleted.")
-        return
-
-    # Get worst performers to delete
-    to_delete = sorted_mins[-num_to_delete:]
-
-    # Confirm deletion
-    print("\nWARNING: These models will be permanently deleted:")
-    for model_name, score in to_delete:
-        print(f"- {model_name} (RMSE: {score:.4f})")
-
-    confirm = input("\nConfirm deletion? (y/n): ").lower()
-    if confirm != 'y':
-        print("Deletion canceled.")
-        return
-
-    # Delete files
-    deleted_count = 0
-    for model_name, _ in to_delete:
-        # Find matching model file
-        for model_path in model_files:
-            if os.path.basename(model_path) == model_name:
-                try:
-                    os.remove(model_path)
-                    deleted_count += 1
-                except Exception as e:
-                    print(f"Error deleting {model_name}: {str(e)}")
-                break
-
-    print(f"\nSuccessfully deleted {deleted_count}/{num_to_delete} models")
 
 if __name__ == '__main__':
     target = 'class'
     df = load_prepared(f'data/{target}10', keep_latlon=True, sample_frac=1)
     col='rel'
-    # df = filter_reliable_potholes(df, **params, reliable_col=col)
-    # df = df[df[col]]
     df=df.drop(columns=[col, 'lat', 'lon'], errors='ignore')
     X, y_test = df.drop(columns=[target]), df[target]
-
-    # manage_models()
 
     models_path = 'models/*.pkl'
     model_files = glob.glob(models_path)
 
     for f in model_files:
-        score, stats, reg = evaluate_classification(X, y_test, filename=f)
+        stats, reg, score = evaluate_classification(X, y_test, f)
         draw_linear(stats, reg, score, name=f)
 
 

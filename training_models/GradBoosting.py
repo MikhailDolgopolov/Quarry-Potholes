@@ -41,13 +41,11 @@ def train_evaluate(params, X_t, y_t, X_e, y_e, train_weights=None, eval_weights=
 
         # Evaluation metrics
         test_pred = model.predict(X_e)
-        test_mae = mean_absolute_error(y_e, test_pred, sample_weight=eval_weights)
-        test_mse = mean_squared_error(y_e, test_pred, sample_weight=eval_weights)
+        test_rmse = np.sqrt(mean_squared_error(y_e, test_pred, sample_weight=eval_weights))
 
         return {
             'params': non_default_params,  # Return only non-default params
-            'test_mse': test_mse,
-            'test_mae': test_mae,
+            'test_rmse': test_rmse,
             'model': model
         }
     except Exception as e:
@@ -60,7 +58,7 @@ def hgbr_grid_search(param_grid: dict, df: pd.DataFrame, target: str, test_frac=
     Custom grid search for HistGradientBoostingRegressor
     """
     param_combinations = list(ParameterGrid(param_grid))
-    print(f"Total combinations: {len(param_combinations)}")
+    print(f"Grid search combinations: {len(param_combinations)}")
 
     # Split data once upfront
     train_df, test_df = train_test_split(df, test_size=test_frac)
@@ -75,13 +73,13 @@ def hgbr_grid_search(param_grid: dict, df: pd.DataFrame, target: str, test_frac=
         results = [result for result in parallel(jobs) if result]
 
     # Sort results by test MAE
-    sorted_results = sorted(results, key=lambda x: x['test_mse'])
+    sorted_results = sorted(results, key=lambda x: x['test_rmse'])
 
     # Save top 3 models
-    for idx, result in enumerate(sorted_results[:5], 1):
+    for idx, result in enumerate(sorted_results[:3], 1):
         model = result['model']
         pstr = ''.join([f'[{k}{v}]' for k, v in result['params'].items()])
-        model_name = f"HGBR_{pstr}_top{idx}_{round(result['test_mae'])}.pkl"
+        model_name = f"HGBR_{pstr}_top{idx}_{round(result['test_rmse'])}.pkl"
 
         with open(f"models/{model_name}", "wb") as f:
             pickle.dump(model, f)
@@ -107,12 +105,12 @@ if __name__ == "__main__":
     # }
 
     param_grid = {
-        'max_depth': [12, 14, None],
-        'tol': [1e-2, 1e-4, 1e-6],
+        # 'max_depth': [12, 14, None],
+        'tol': [1e-2, 1e-4, 0.1],
         # 'max_features': [1.0, 0.9],
-        'learning_rate': [0.2],
-        'l2_regularization': [0.3, 0.1, 0.5,],
-        'min_samples_leaf': [5, 10, 20, 40],
+        'learning_rate': [0.2, 0.1, 1],
+        'l2_regularization': [0.3, 0.1, 0.0,],
+        'min_samples_leaf': [5, 20, 40],
         'loss': ['absolute_error', 'squared_error'],
     }
 
