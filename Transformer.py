@@ -120,26 +120,3 @@ class RollingWindowTransformer(BaseEstimator, TransformerMixin):
         # Fill missing values using forward-fill then backward-fill and drop any remaining NaNs.
         result = result.ffill().bfill().dropna()
         return result
-
-    def roll_data(self, X: pd.DataFrame) -> pd.DataFrame:
-        """
-        An alternative method that applies the transform and additionally
-        smooths 'lat' and 'lon' columns if they exist.
-
-        Parameters
-        ----------
-        X : pd.DataFrame
-            The input data.
-
-        Returns
-        -------
-        pd.DataFrame
-            The transformed data with 'lat' and 'lon' smoothed.
-        """
-        result = self.transform(X)
-        # Smooth latitude and longitude if available.
-        for coord in ['lat', 'lon']:
-            if coord in X.columns:
-                result[coord] = X[coord].rolling(window=self.window_size, center=True).mean()
-        result = result.ffill().bfill().dropna()
-        return result

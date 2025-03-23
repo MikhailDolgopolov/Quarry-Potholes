@@ -53,7 +53,8 @@ def train_evaluate(params, X_t, y_t, X_e, y_e, train_weights=None, eval_weights=
         return None
 
 
-def hgbr_grid_search(param_grid: dict, df: pd.DataFrame, target: str, test_frac=0.2, n_jobs=8):
+def hgbr_grid_search(param_grid: dict, df: pd.DataFrame, target: str, test_frac=0.2, n_jobs=8,
+                     save_num=2, print_num=3, name="HGBR"):
     """
     Custom grid search for HistGradientBoostingRegressor
     """
@@ -76,14 +77,14 @@ def hgbr_grid_search(param_grid: dict, df: pd.DataFrame, target: str, test_frac=
     sorted_results = sorted(results, key=lambda x: x['test_rmse'])
 
     # Save top 3 models
-    for idx, result in enumerate(sorted_results[:3], 1):
+    for idx, result in enumerate(sorted_results[:save_num], 1):
         model = result['model']
         pstr = ''.join([f'[{k}{v}]' for k, v in result['params'].items()])
-        model_name = f"HGBR_{pstr}_top{idx}_{round(result['test_rmse'])}.pkl"
+        model_name = f"{name}_{pstr}_top{idx}_{round(result['test_rmse'])}.pkl"
 
         with open(f"models/{model_name}", "wb") as f:
             pickle.dump(model, f)
-    pprint(sorted_results[:3])
+    pprint(sorted_results[:print_num])
     return sorted_results
 
 # Usage example
@@ -93,7 +94,7 @@ if __name__ == "__main__":
 
     ws = 10
     target = 'class'
-    big_df = load_prepared(f"data/{target}{ws}", sample_frac=0.5)
+    big_df = load_prepared(f"data/multi{ws}", sample_frac=0.5)
 
     # Define parameter grid for boosting
     # param_grid = {
@@ -105,13 +106,12 @@ if __name__ == "__main__":
     # }
 
     param_grid = {
-        # 'max_depth': [12, 14, None],
-        'tol': [1e-2, 1e-4, 0.1],
-        # 'max_features': [1.0, 0.9],
-        'learning_rate': [0.2, 0.1, 1],
-        'l2_regularization': [0.3, 0.1, 0.0,],
-        'min_samples_leaf': [5, 20, 40],
-        'loss': ['absolute_error', 'squared_error'],
+        'max_depth': [13, None],
+        'tol': [1e-2],
+        'learning_rate': [0.1, 0.2],
+        'l2_regularization': [0.3, 0.1, 0.0],
+        'min_samples_leaf': [10, 20, 20, 40, 50],
+        # 'loss': ['absolute_error', 'squared_error'],
     }
 
     # Run grid search
@@ -120,5 +120,6 @@ if __name__ == "__main__":
         df=big_df,
         target=target,
         test_frac=0.3,
-        n_jobs=4
+        n_jobs=4,
+        name='MultiWS'
     )

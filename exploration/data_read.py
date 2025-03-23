@@ -81,7 +81,7 @@ def load_prepared(folder_path:str, keep_latlon=False, sample_frac=1)->pd.DataFra
             file_path = os.path.join(folder_path, filename)
             df = pd.read_csv(file_path, sep=';', dtype=np.float32)
             if not keep_latlon:
-                df = df.drop(columns=['lat', 'lon'])
+                df = df.drop(columns=['lat', 'lon'], errors='ignore')
             dataframes.append(df)
     return pd.concat(dataframes, ignore_index=True).sample(frac=sample_frac)
 

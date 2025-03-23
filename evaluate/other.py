@@ -1,30 +1,53 @@
 import glob
 import os
+import pickle
 
 import numpy as np
+import pandas as pd
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import mean_squared_error
+from sklearn.utils import compute_sample_weight
 from tqdm import tqdm
 
-from evaluate.ClassificationEval import evaluate_classification, X, y_test
+def evaluate_classification(X, y_test, filename) -> tuple[pd.DataFrame, LinearRegression, float]:
+    # Load the model
+    with open(filename, "rb") as f:
+        model = pickle.load(f)
+
+    # Make predictions
+    y_pred = model.predict(X)
+
+    # Create a dataframe with true and predicted values
+    results_df = pd.DataFrame({
+        'true_class': y_test,
+        'prediction': y_pred
+    })
+
+    # Compute RMSE with balanced sample weights
+    weights = compute_sample_weight('balanced', y_test)
+    rmse = np.sqrt(mean_squared_error(y_test, y_pred, sample_weight=weights))
+
+    # Fit linear regression on all true vs. predicted points
+    reg = LinearRegression()
+    reg.fit(y_test.values.reshape(-1, 1), y_pred, sample_weight=weights)
+
+    return results_df, reg, rmse
 
 
-def manage_models(models_path='models/*.pkl'):
+def manage_models( x_test, y_test, models_path='models/*.pkl'):
     model_files = glob.glob(models_path)
-    thresholds = np.arange(0.3, 0.7, 0.04)
     results = {}
 
     for model_path in tqdm(model_files):
         # print(type(model_path))
 
         model_name = os.path.basename(model_path).split('\\')[0]
-        results[model_name] = []
 
-        for i in thresholds:
-            rmse, _, _ = evaluate_classification(X, y_test, model_path, i)
-            results[model_name].append(rmse)
+        _, _, rmse = evaluate_classification(x_test, y_test, model_path)
+        results[model_name] = rmse
 
-    mins = {n: np.min(score) for n, score in results.items()}
     # Rank models by their minimum RMSE (best to worst)
-    sorted_mins = sorted(mins.items(), key=lambda x: x[1])
+    sorted_mins = sorted(results.items(), key=lambda x: x[1])
 
     # Print model rankings
     print("\nModel Rankings (Best to Worst):")

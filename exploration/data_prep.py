@@ -4,6 +4,7 @@ from typing import Callable
 import pandas as pd
 from tqdm import tqdm
 
+from ComplexTransformer import MultiWindowRollingTransformer
 from Transformer import RollingWindowTransformer
 from exploration.data_read import read_truck_data, read_raw_dirdata, read_new_points
 
@@ -47,7 +48,7 @@ def preprocess_data(
     num_tracks = []
 
     # Process each directory
-    mould = lambda x: transformer.roll_data(x) if transformer is not None else x
+    mould = lambda x: transformer.transform(x) if transformer is not None else x
     for dir_name in tqdm(dir_names, desc="Processing paths"):
         new_path = read_raw_dirdata(dir_name, dir_pattern, read_func)
         rolled_new_paths = [mould(df) for df in new_path if not df.empty]
@@ -76,10 +77,11 @@ if __name__ == "__main__":
     dir_path_func = lambda n: f"data/routes/route{n}"
     target, ws = 'class', 10
 
-    output_folder = f"data/{target}{ws}"
+    output_folder = f"data/multi{ws}"
 
     read_func = read_truck_data if target=='hole' else read_new_points
-    t = None if target=='raw' else current_transformer
+    # t = None if target=='raw' else current_transformer
+    t = MultiWindowRollingTransformer(current_transformer.column_transform, [4, 6, 10])
     # Run preprocessing
     preprocess_data(
         tracks=tracks,

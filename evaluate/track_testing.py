@@ -20,7 +20,7 @@ with open(f'models/{model_path}', 'rb') as f:
 
 
 def plot_lines(df):
-    data = current_transformer.roll_data(df)
+    data = current_transformer.transform(df)
     target='class'
 
 
@@ -59,7 +59,7 @@ def plot_lines(df):
     # plt.savefig(f'images/{select}.png')
 
 def draw_map(df):
-    data = current_transformer.roll_data(df)
+    data = current_transformer.transform(df)
     target = 'class'
     Xy = data.drop(columns=['lat', 'lon'])
 
