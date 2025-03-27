@@ -8,16 +8,6 @@ from ComplexTransformer import MultiWindowRollingTransformer
 from Transformer import RollingWindowTransformer
 from exploration.data_read import read_truck_data, read_raw_dirdata, read_new_points
 
-current_transformer = RollingWindowTransformer({
-        'rot_X': ['', 'var'],
-        'rot_Y': ['', 'var', ],
-        'acc_X': ['', 'std', 'max'],
-        'acc_Z': ['', 'std', 'max'],
-        'acc': ['', 'std', 'var', 'max', 'range'],
-        'fb_tilt': ['max', 'var', 'range'],
-        'tilt': ['max', 'var', 'range'],
-    }, window_size=10)
-
 def add_stats(frame: pd.DataFrame) -> pd.DataFrame:
     """Add statistical features to the DataFrame."""
     frame['energy_proxy'] = frame['vel'] ** 2 + frame['acc'] ** 2
@@ -73,15 +63,24 @@ def preprocess_data(
 
 
 if __name__ == "__main__":
+    target, ws = 'hole', 10
+    current_transformer = RollingWindowTransformer({
+        'rot_X': ['std', 'cv', 'iqr', 'skew'],
+        'rot_Y': ['std', 'cv', 'iqr', 'skew'],
+        'acc_X': ['std', 'kurt', 'var', 'iqr',],
+        'acc_Y': ['std', 'kurt', 'var', 'iqr',],
+        'acc_Z': ['std', 'kurt', 'iqr', 'range'],
+        'acc': ['std', 'var', 'iqr', 'kurt', 'cv'],
+    }, window_size=ws)
+
     tracks = range(1, 36)
     dir_path_func = lambda n: f"data/routes/route{n}"
-    target, ws = 'class', 10
 
-    output_folder = f"data/multi{ws}"
+
+    output_folder = f"data/{target}{ws}"
 
     read_func = read_truck_data if target=='hole' else read_new_points
-    # t = None if target=='raw' else current_transformer
-    t = MultiWindowRollingTransformer(current_transformer.column_transform, [4, 6, 10])
+    t = None if target=='raw' else current_transformer
     # Run preprocessing
     preprocess_data(
         tracks=tracks,
