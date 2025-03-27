@@ -6,11 +6,6 @@ from sklearn.model_selection import cross_val_score
 from exploration.data_read import load_prepared
 from helpers import train_split_by_column
 
-target, ws = 'hole', 5
-# Load data and split (replace these with your actual functions)
-df = load_prepared(f'data/{target}{ws}', keep_latlon=False, sample_frac=1)
-X_train, y_train, X_test, y_test = train_split_by_column(df, target, 0.5)
-
 # ----- 1. Fisher Score Calculation -----
 def fisher_score(X: pd.DataFrame, y: pd.Series) -> dict:
     """
@@ -130,16 +125,6 @@ def jeffries_matusita_distance(X: pd.DataFrame, y: pd.Series) -> float:
     JM = np.sqrt(2 * (1 - np.exp(-B)))
     return JM
 
-# ----- 3. Cross-Validated Logistic Regression Accuracy -----
-# This is an empirical proxy: if the best simple model can't separate the classes well,
-# then the intrinsic separability might be low.
-lr = LogisticRegression(max_iter=1000)
-cv_scores = cross_val_score(lr, X_train, y_train, cv=5, scoring='f1_weighted')
-print("\nLogistic Regression CV Accuracy: {:.3f} ± {:.3f}".format(np.mean(cv_scores), np.std(cv_scores)))
-
-jm_distance = jeffries_matusita_distance(X_train, y_train)
-print("Jeffries-Matusita Distance:", jm_distance)
-
 
 def multivariate_bhattacharyya_distance(X: pd.DataFrame, y: pd.Series) -> float:
     """
@@ -194,3 +179,16 @@ def multivariate_bhattacharyya_distance(X: pd.DataFrame, y: pd.Series) -> float:
 # # Compute the overall separability metric
 # overall_separability = multivariate_bhattacharyya_distance(X_train, y_train)
 # print("Multivariate Bhattacharyya Distance:", overall_separability)
+
+if __name__ == '__main__':
+    target, ws = 'hole', 5
+    # Load data and split (replace these with your actual functions)
+    df = load_prepared(f'data/{target}{ws}', keep_latlon=False, sample_frac=1)
+    X_train, y_train, X_test, y_test = train_split_by_column(df, target, 0.5)
+
+    lr = LogisticRegression(max_iter=1000)
+    cv_scores = cross_val_score(lr, X_train, y_train, cv=5, scoring='f1_weighted')
+    print("\nLogistic Regression CV Accuracy: {:.3f} ± {:.3f}".format(np.mean(cv_scores), np.std(cv_scores)))
+
+    jm_distance = jeffries_matusita_distance(X_train, y_train)
+    print("Jeffries-Matusita Distance:", jm_distance)

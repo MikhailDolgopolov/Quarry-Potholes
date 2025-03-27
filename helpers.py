@@ -54,6 +54,7 @@ def convert_dash_to_nan(df):
 def train_split_by_column(df, y_column:str, test_frac: Interval(RealNotInt, 0, 1, closed="neither")):
     train_df, test_df = train_test_split(df, test_size=test_frac)
     X_train, y_train = train_df.drop(columns=[y_column]), train_df[y_column]
+
     X_test, y_test = test_df.drop(columns=[y_column]), test_df[y_column]
     return X_train, y_train, X_test, y_test
 
@@ -95,3 +96,19 @@ def select_random_file(folder_path):
         return None
 
 
+if __name__ == '__main__':
+    import os
+
+    directory = "models/LVQs"  # Change this to your actual directory
+    suffix = "-resampled1.2"  # Change this to your desired suffix
+
+    # for filename in os.listdir(directory):
+    #     old_path = os.path.join(directory, filename)
+    #
+    #     if os.path.isfile(old_path):  # Ensure it's a file
+    #         name, ext = os.path.splitext(filename)  # Separate name and extension
+    #         new_filename = f"{name}{suffix}{ext}"  # Append suffix before extension
+    #         new_path = os.path.join(directory, new_filename)
+    #
+    #         os.rename(old_path, new_path)
+    #         print(f"Renamed: {filename} -> {new_filename}")

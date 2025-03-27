@@ -74,7 +74,7 @@ def get_columns(folder_path: str, keep_latlon=False):
         df = df.drop(columns=['lat', 'lon'])
     return df.columns
 
-def load_prepared(folder_path:str, keep_latlon=False, sample_frac=1)->pd.DataFrame:
+def load_prepared(folder_path:str, keep_latlon=False, sample_frac=1, x_selection:list[str]=None)->pd.DataFrame:
     dataframes = []
     for filename in tqdm(os.listdir(folder_path), desc='Loading data'):
         if filename.endswith('.csv'):
@@ -83,7 +83,15 @@ def load_prepared(folder_path:str, keep_latlon=False, sample_frac=1)->pd.DataFra
             if not keep_latlon:
                 df = df.drop(columns=['lat', 'lon'], errors='ignore')
             dataframes.append(df)
-    return pd.concat(dataframes, ignore_index=True).sample(frac=sample_frac)
+
+    result = pd.concat(dataframes, ignore_index=True).sample(frac=sample_frac)
+    if x_selection is None:
+        x_selection=result.columns
+    else:
+        for output  in ['hole', 'class']:
+            if output in result:
+                x_selection.append(output)
+    return result[x_selection]
 
 def read_new_points(path: str) -> Optional[pd.DataFrame]:
     try:

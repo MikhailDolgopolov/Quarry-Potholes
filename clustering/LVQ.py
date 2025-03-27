@@ -1,196 +1,172 @@
 import os
 import pickle
-from pprint import pprint
 
-import joblib
 import numpy as np
 import pandas as pd
-from matplotlib import pyplot as plt
+from sklearn.metrics import classification_report
 from sklearn.preprocessing import StandardScaler
 from sklearn.utils import resample
 from sklvq import GLVQ
 
+from evaluate.draw_functions import LVQ_class_separation
 from exploration.data_read import load_prepared
-from sklearn.metrics import mean_absolute_error, classification_report
-
 from helpers import train_split_by_column
 
-def importances(x, y, switch, ps)->pd.Series:
-    if switch:
-        scaler = StandardScaler()
-        X_scaled = scaler.fit_transform(x)
-    print("Training GLVQ model...")
-    model = GLVQ(prototype_n_per_class=np.array(ps))
-    model.fit(x, y)
+def save_model(model, scaler, model_path, scaler_path):
+    """Save model and scaler to disk using pickle."""
+    with open(model_path, 'wb') as f:
+        pickle.dump(model, f)
+    if scaler:
+        with open(scaler_path, 'wb') as f:
+            pickle.dump(scaler, f)
 
-    prototype_labels = model.prototypes_labels_
-    prototypes_even = prototypes_original[prototype_labels == 0]
-    prototypes_hole = prototypes_original[prototype_labels == 1]
+def load_model(model_path, scaler_path):
+    """Load model and scaler from disk."""
+    with open(model_path, 'rb') as f:
+        model = pickle.load(f)
+    scaler = None
+    if os.path.exists(scaler_path):
+        with open(scaler_path, 'rb') as f:
+            scaler = pickle.load(f)
+    return model, scaler
 
-    # Compute mean prototypes.
-    mean_prototype_even = np.mean(prototypes_even, axis=0)
-    mean_prototype_hole = np.mean(prototypes_hole, axis=0)
 
-    # === Feature Importance Analysis ===
-    feature_names = X_train_oversampled.columns
-    differences = np.abs(mean_prototype_hole - mean_prototype_even)
-    feature_importance = pd.Series(differences, index=feature_names).sort_values(ascending=False)
-    return feature_importance
+def get_model_predictions(config, retrain=False):
+    """
+    Get predictions from a GLVQ model based on configuration parameters.
+    Trains and saves new model if none exists (with user confirmation).
 
-if __name__ == '__main__':
-    # === Configuration ===
-    prototypes = [2, 4]
+    Args:
+        config (dict): Configuration dictionary with parameters
+        retrain (bool): Force retraining even if model exists
+
+    Returns:
+        tuple: (y_pred, y_test, model, scaler) or None if aborted
+    """
+    # Unpack configuration
+    prototypes = config['prototypes']
+    target = 'hole'
+    ws = config['ws']
+    use_scaler = config['use_scaler']
+    use_resampling = config['use_resampling']
+    res_ratio = config['res_ratio']
+    imp_cols = config['imp_cols']
+    sample_frac = config['sample_frac']
+    test_size = config['test_size']
+
+    # Create model paths
     prots = f'[{",".join(map(str, prototypes))}]'
-    target, ws = 'hole', 10
-    # Switch to enable or disable scaling
-    use_scaler = False
+    res_option = f'-resampled{res_ratio}' if use_resampling else ''
+    scaled = 'scaled' if use_scaler else 'original'
 
     model_dir = 'models/LVQs'
-    scaled = 'scaled' if use_scaler else 'original'
     os.makedirs(model_dir, exist_ok=True)
-    model_path = os.path.join(model_dir, f'glvq_{target}{ws}-{scaled}-{prots}.joblib')
-    scaler_path = os.path.join(model_dir, f'scaler_{target}{ws}-{scaled}-{prots}.joblib')
 
-
-    # You can also add a switch for using a pre-trained model if needed.
-    use_pretrained_model = True
-
-    # === Data Loading & Splitting ===
-    df = load_prepared(f'data/{target}{ws}', keep_latlon=False, sample_frac=0.5)
-    X_train, y_train, X_test, y_test = train_split_by_column(df, target, 0.5)
-
-    # === Handling Class Imbalance by Oversampling Minority ===
-    minority_class = 1
-    majority_class = 0
-    X_minority = X_train[y_train == minority_class]
-    y_minority = y_train[y_train == minority_class]
-    X_majority = X_train[y_train == majority_class]
-    y_majority = y_train[y_train == majority_class]
-
-    n_majority = len(X_majority)
-    X_minority_oversampled, y_minority_oversampled = resample(
-        X_minority, y_minority,
-        replace=True,
-        n_samples=int(n_majority * 1.2),
-        random_state=42
+    model_path = os.path.join(
+        model_dir,
+        f'glvq_{target}{ws}-{scaled}-{prots}{res_option}.pkl'
+    )
+    scaler_path = os.path.join(
+        model_dir,
+        f'scaler_{target}{ws}-{scaled}-{prots}{res_option}.pkl'
     )
 
-    X_train_oversampled = pd.concat([X_majority, X_minority_oversampled]).reset_index(drop=True)
-    y_train_oversampled = pd.concat([y_majority, y_minority_oversampled]).reset_index(drop=True)
+    # Try to load existing model
+    if not retrain and os.path.exists(model_path):
+        print(f"Loading existing model from {model_path}")
+        model, scaler = load_model(model_path, scaler_path)
+        data_loaded = False
+    else:
+        # User confirmation for training
+        if not retrain:
+            response = input(f"No model found at {model_path}. Train new model? [y/N]: ").strip().lower()
+            if response != 'y':
+                print("Model training aborted by user")
+                return None, None, None, None
 
-    # === Scaling (Optional) ===
-    if use_scaler:
-        # If using a scaler, try to load a pre-trained model and scaler if available.
-        if use_pretrained_model and os.path.exists(model_path) and os.path.exists(scaler_path):
-            print(f"Loading pre-trained model and scaler from {model_path} and {scaler_path}...")
-            model = joblib.load(model_path)
-            scaler = joblib.load(scaler_path)
-            X_train_scaled = scaler.transform(X_train_oversampled)
-            X_test_scaled = scaler.transform(X_test)
+        # Load and prepare data
+        print("Loading and preparing data...")
+        df = load_prepared(f'data/{target}{ws}', x_selection=imp_cols, sample_frac=sample_frac)
+        X_train, y_train, X_test, y_test = train_split_by_column(df, target, test_size)
+
+        # Handle class imbalance
+        if use_resampling:
+            minority_class = 1
+            X_minority = X_train[y_train == minority_class]
+            y_minority = y_train[y_train == minority_class]
+            X_majority = X_train[y_train == 0]
+            y_majority = y_train[y_train == 0]
+
+            X_minority_oversampled, y_minority_oversampled = resample(
+                X_minority, y_minority,
+                replace=True,
+                n_samples=int(len(X_majority) * res_ratio),
+                random_state=42
+            )
+
+            X_train_processed = pd.concat([X_majority, X_minority_oversampled])
+            y_train_processed = pd.concat([y_majority, y_minority_oversampled])
         else:
-            # Fit the scaler on training data and transform both train and test sets.
-            scaler = StandardScaler()
-            X_train_scaled = scaler.fit_transform(X_train_oversampled)
-            X_test_scaled = scaler.transform(X_test)
-    else:
-        # If not scaling, use the original data
-        X_train_scaled = X_train_oversampled.values
-        X_test_scaled = X_test.values
+            X_train_processed = X_train.copy()
+            y_train_processed = y_train.copy()
 
-    # === Training the GLVQ Model ===
-    if use_pretrained_model and os.path.exists(model_path):
-        print(f"Loading pre-trained model from {model_path}...")
-        model = joblib.load(model_path)
-    else:
-        print("Training GLVQ model...")
+        # Feature scaling
+        scaler = StandardScaler() if use_scaler else None
+        if scaler:
+            X_train_scaled = pd.DataFrame(
+                scaler.fit_transform(X_train_processed),
+                columns=X_train_processed.columns
+            )
+            X_test_scaled = pd.DataFrame(
+                scaler.transform(X_test),
+                columns=X_test.columns
+            )
+        else:
+            X_train_scaled = X_train_processed.copy()
+            X_test_scaled = X_test.copy()
+
+        # Train and save model
+        print("Training new model...")
         model = GLVQ(prototype_n_per_class=np.array(prototypes))
-        model.fit(X_train_scaled, y_train_oversampled.to_numpy())
-        joblib.dump(model, model_path)
+        model.fit(X_train_scaled, y_train_processed)
+        save_model(model, scaler, model_path, scaler_path)
         print(f"Model saved to {model_path}")
-        # Save the scaler only if used.
-        if use_scaler:
-            joblib.dump(scaler, scaler_path)
-            print(f"Scaler saved to {scaler_path}")
+        data_loaded = True
 
-    # === Predict & Evaluate ===
+    # Generate predictions
+    if not data_loaded:
+        df = load_prepared(f'data/{target}{ws}', x_selection=imp_cols, sample_frac=sample_frac)
+        _, _, X_test, y_test = train_split_by_column(df, target, test_size)
+
+        if scaler:
+            X_test_scaled = pd.DataFrame(
+                scaler.transform(X_test),
+                columns=X_test.columns
+            )
+        else:
+            X_test_scaled = X_test.copy()
+
     y_pred = model.predict(X_test_scaled)
-    print(classification_report(y_test, y_pred))
+    return y_pred, y_test, model, scaler
 
-    # === Mapping Prototypes Back to Original Space (if scaler was used) ===
-    if use_scaler:
-        prototypes_scaled = model.prototypes_
-        prototypes_original = scaler.inverse_transform(prototypes_scaled)
-    else:
-        prototypes_original = model.prototypes_
 
-    # Assign prototypes to classes.
-    prototype_labels = model.prototypes_labels_
-    prototypes_even = prototypes_original[prototype_labels == 0]
-    prototypes_hole = prototypes_original[prototype_labels == 1]
+# Example usage:
+if __name__ == '__main__':
+    config = {
+        'prototypes': [2, 2],
+        'ws': 7,
+        'use_scaler': False,
+        'use_resampling': True,
+        'res_ratio': 1.2,
+        'imp_cols': ['acc_X_std', 'acc_X_kurt', 'acc_X_var', 'acc_X_iqr',
+                     'acc_Y_var', 'acc_Y_iqr', 'acc_std', 'acc_var', 'acc_iqr', 'acc_kurt'],
+        'sample_frac': 0.3,
+        'test_size': 0.2
+    }
 
-    # Compute mean prototypes.
-    mean_prototype_even = np.mean(prototypes_even, axis=0)
-    mean_prototype_hole = np.mean(prototypes_hole, axis=0)
+    y_pred, y_test, model, scaler = get_model_predictions(config)
 
-    # === Feature Importance Analysis ===
-    feature_names = X_train_oversampled.columns
-    differences = np.abs(mean_prototype_hole - mean_prototype_even)
-    feature_importance = pd.Series(differences, index=feature_names).sort_values(ascending=False)
-    top_features = feature_importance.index[:8]
-
-    # If scaling was applied, we need to invert the scaling for visualization.
-    if use_scaler:
-        X_train_original = scaler.inverse_transform(X_train_scaled)
-    else:
-        X_train_original = X_train_scaled
-    X_train_df = pd.DataFrame(X_train_original, columns=feature_names)
-    X_train_df[target] = y_train_oversampled.values
-
-    ranges_even = X_train_df[X_train_df[target] == 0].agg(['mean', 'std']).drop(columns=target)
-    ranges_hole = X_train_df[X_train_df[target] == 1].agg(['mean', 'std']).drop(columns=target)
-
-    ranges_even_df = pd.DataFrame({
-        'lower': ranges_even.loc['mean'] - ranges_even.loc['std'],
-        'upper': ranges_even.loc['mean'] + ranges_even.loc['std']
-    }, index=feature_names)
-
-    ranges_hole_df = pd.DataFrame({
-        'lower': ranges_hole.loc['mean'] - ranges_hole.loc['std'],
-        'upper': ranges_hole.loc['mean'] + ranges_hole.loc['std']
-    }, index=feature_names)
-
-    print("Top Significant Features (based on mean prototype differences):")
-    print(feature_importance[top_features])
-
-    # === Visualization ===
-    n_cols = 3  # Number of columns for subplots
-    n_rows = int(np.ceil(len(top_features) / n_cols))
-    fig, ax = plt.subplots(n_rows, n_cols, figsize=(3 * n_cols, 5 * n_rows))
-    fig.suptitle(f"Significant Features and Their Ranges ({prots} Prototypes)", fontsize=14)
-    ax_flat = ax.flatten()
-
-    bar_params = {'alpha': 0.3, 'width': 0.25}
-    for i, feature in enumerate(top_features):
-        # Plot each prototype for even class.
-        for proto in prototypes_even:
-            ax_flat[i].bar('even', proto[feature_names == feature], color='blue', **bar_params)
-        # Plot each prototype for hole class.
-        for proto in prototypes_hole:
-            ax_flat[i].bar('hole', proto[feature_names == feature], color='red', **bar_params)
-
-        # Plot mean prototypes.
-        ax_flat[i].bar('even', mean_prototype_even[feature_names == feature], color='blue', label='even mean',
-                       **bar_params)
-        ax_flat[i].bar('hole', mean_prototype_hole[feature_names == feature], color='red', label='hole mean',
-                       **bar_params)
-
-        ax_flat[i].set_title(f"{feature}")
-        ax_flat[i].set_ylabel("Feature Value")
-        ax_flat[i].legend()
-
-    # Hide any unused subplots.
-    for j in range(i + 1, len(ax_flat)):
-        ax_flat[j].set_visible(False)
-
-    plt.subplots_adjust(hspace=0.4, wspace=0.3)
-    plt.show()
+    if y_pred is not None:
+        print("\nClassification Report:")
+        print(classification_report(y_test, y_pred))
+        # LVQ_class_separation(model, model.prototypes_, config['imp_cols'])

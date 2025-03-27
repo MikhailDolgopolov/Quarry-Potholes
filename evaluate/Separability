@@ -1,0 +1,9 @@
+Without StandardScaler:
+10 features
+Best feature set: ('acc_X_std', 'acc_X_kurt', 'acc_X_var', 'acc_X_iqr', 'acc_Y_var', 'acc_Y_iqr', 'acc_std', 'acc_var', 'acc_iqr', 'acc_kurt')
+Best Jeffries-Matusita distance: 1.0185598857036022
+
+With scaler:
+7 features
+Best feature set: ('acc_X_std', 'acc_X_var', 'acc_X_iqr', 'acc_Z_std', 'acc_Z_range', 'acc_std', 'acc_var')
+Best Jeffries-Matusita distance: 0.9175356719040149
