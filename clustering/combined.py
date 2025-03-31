@@ -9,48 +9,89 @@ from exploration.data_read import load_prepared
 from helpers import train_split_by_column
 
 # Load dataset
-target, ws = 'class', 5
+target, ws = 'class', 10
 df = load_prepared(f'data/{target}{ws}')
 X, y = df.drop(columns=target), df[target]
 y_binary = np.where(y > 0, 1, 0)
-
-# Iterate through all LVQ models
-for model_path in glob.glob(f'models/LVQs/*hole*.pkl'):
-    # print(f'\nEvaluating {model_path}')
+overall_counts = y.value_counts().sort_index()
+classes = overall_counts.index
+bar_w=20
+for model_path in glob.glob(f'models/LVQs/*hole{ws}*.pkl'):
+    # Make predictions and evaluate
     hole_pred = predict_with_LVQ(model_path, X)
-    print(classification_report(y_binary, hole_pred))
-    accuracy = classification_report(y_binary, hole_pred, output_dict=True)['accuracy']
+    # print(classification_report(y_binary, hole_pred))
+    report = classification_report(y_binary, hole_pred, output_dict=True)
+    accuracy = report['accuracy']
+    f1_pothole = report['1']['f1-score']
+    f1_nonhole = report['0']['f1-score']
 
-    predicted_hole_df = df[hole_pred > 0]  # Positive predictions
-    predicted_non_hole_df = df[hole_pred == 0]  # Negative predictions
+    # Compute confusion matrix counts
+    TN_count = ((y_binary == 0) & (hole_pred == 0)).sum()
+    FN_count = ((y_binary == 1) & (hole_pred == 0)).sum()
+    FP_count = ((y_binary == 0) & (hole_pred == 1)).sum()
+    TP_count = ((y_binary == 1) & (hole_pred == 1)).sum()
 
-    # Compute overall class distributions
-    overall_counts = y.value_counts()
+    # Compute proportions for predicted negative cases
+    total_pred_neg = TN_count + FN_count
+    TN_proportion = TN_count / total_pred_neg if total_pred_neg > 0 else 0
+    FN_proportion = FN_count / total_pred_neg if total_pred_neg > 0 else 0
+
+    # Compute proportions for predicted positive cases
+    total_pred_pos = FP_count + TP_count
+    FP_proportion = FP_count / total_pred_pos if total_pred_pos > 0 else 0
+    TP_proportion = TP_count / total_pred_pos if total_pred_pos > 0 else 0
+
+    # Compute proportions for original classes in predictions
+    predicted_hole_df = df[hole_pred > 0]
+    predicted_non_hole_df = df[hole_pred == 0]
     hole_counts = predicted_hole_df[target].value_counts()
     non_hole_counts = predicted_non_hole_df[target].value_counts()
+    hole_proportion = (hole_counts.reindex(classes, fill_value=0) / overall_counts).fillna(0)
+    non_hole_proportion = (non_hole_counts.reindex(classes, fill_value=0) / overall_counts).fillna(0)
 
-    # Compute proportions
-    hole_proportion = hole_counts.divide(overall_counts)
-    non_hole_proportion = non_hole_counts.divide(overall_counts)
-
-    # Setup side-by-side plots
-    fig, axes = plt.subplots(1, 2, figsize=(12, 5))
-    title = model_path.split('LVQs/')[-1].split('.')[0]
-    title += f'\nAccuracy: {accuracy:.3f}'
+    # Setup 2x2 plots
+    fig, axes = plt.subplots(2, 2, figsize=(12, 10))
+    title = f'Using window {ws} data to test\n'
+    title += model_path.split('LVQs/')[-1].split('.')[0]
+    title += f'\nAccuracy: {accuracy:.3f} | F1-Hole: {f1_pothole:.3f} | F1-Non-Hole: {f1_nonhole:.3f}'
     fig.suptitle(title, fontsize=14)
 
-    # Plot positive (hole) predictions
-    axes[0].bar(hole_proportion.index, hole_proportion, color='red', alpha=0.7, width=20)
-    axes[0].set_title("Proportion in Predicted Positive Cases")
-    axes[0].set_xticks(hole_proportion.index)
-    axes[0].set_ylim(0, 1)
+    # Top-Left: Composition of Predicted Negative Cases
+    neg_bars = ['TN', 'FN']
+    neg_proportions = [TN_proportion, FN_proportion]
+    neg_colors = ['blue', 'red']
+    bars0 = axes[0, 0].bar(neg_bars, neg_proportions, color=neg_colors, alpha=0.7)
+    axes[0, 0].set_title("Composition of Predicted Negative Cases")
+    axes[0, 0].set_ylim(0, 1)
+    for bar in bars0:
+        height = bar.get_height()
+        axes[0, 0].text(bar.get_x() + bar.get_width()/2., height + 0.02,
+                        f'{height:.2f}', ha='center', va='bottom')
 
-    # Plot negative (non-hole) predictions
-    axes[1].bar(non_hole_proportion.index, non_hole_proportion, color='blue', alpha=0.7, width=20)
-    axes[1].set_title("Proportion in Predicted Negative Cases")
-    axes[1].set_xticks(non_hole_proportion.index)
-    axes[1].set_ylim(0, 1)
+    # Top-Right: Composition of Predicted Positive Cases
+    pos_bars = ['FP', 'TP']
+    pos_proportions = [FP_proportion, TP_proportion]
+    pos_colors = ['red', 'blue']
+    bars1 = axes[0, 1].bar(pos_bars, pos_proportions, color=pos_colors, alpha=0.7)
+    axes[0, 1].set_title("Composition of Predicted Positive Cases")
+    axes[0, 1].set_ylim(0, 1)
+    for bar in bars1:
+        height = bar.get_height()
+        axes[0, 1].text(bar.get_x() + bar.get_width()/2., height + 0.02,
+                        f'{height:.2f}', ha='center', va='bottom')
 
-    # Show plots
-    plt.tight_layout(rect=[0, 0, 1, 0.95])  # Adjust layout to fit the title
+    # Bottom-Left: Proportion of Each Class in Predicted Negative Cases
+    axes[1, 0].bar(classes, non_hole_proportion[classes], alpha=0.7, width=bar_w)
+    axes[1, 0].set_title("Proportion of Each Class in Predicted Negative Cases")
+    axes[1, 0].set_xticks(classes)
+    axes[1, 0].set_ylim(0, 1)
+
+    # Bottom-Right: Proportion of Each Class in Predicted Positive Cases
+    axes[1, 1].bar(classes, hole_proportion[classes], alpha=0.7, width=bar_w)
+    axes[1, 1].set_title("Proportion of Each Class in Predicted Positive Cases")
+    axes[1, 1].set_xticks(classes)
+    axes[1, 1].set_ylim(0, 1)
+
+    # Adjust layout and display
+    plt.tight_layout(rect=[0, 0, 1, 0.95])
     plt.show()

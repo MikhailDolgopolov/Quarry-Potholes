@@ -1,4 +1,3 @@
-import itertools
 import os
 import pickle
 import copy
@@ -8,12 +7,12 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 from joblib import Parallel, delayed
-from sklearn.metrics import classification_report, accuracy_score
+from sklearn.metrics import classification_report, f1_score
 from sklearn.utils import resample
 from sklvq import GLVQ
 from sklearn.model_selection import ParameterGrid
 
-from evaluate.draw_functions import LVQ_class_separation
+from evaluate.draw_functions import lvq_class_separation, lvq_radar_chart
 from exploration.data_read import load_prepared
 from helpers import train_split_by_column
 
@@ -24,7 +23,6 @@ def predict_with_LVQ(model_path, X) -> np.ndarray:
     """Load a saved GLVQ model and predict using predefined LVQ columns."""
     if not os.path.exists(model_path):
         raise FileNotFoundError(f"Model file not found: {model_path}")
-
     with open(model_path, 'rb') as f:
         model = pickle.load(f)
     return model.predict(X[features_for_LVQ])
@@ -39,7 +37,7 @@ if __name__ == '__main__':
         )
 
 
-    def get_model_predictions(config: dict, X_train, y_train, X_test, retrain=False, save_best=True)\
+    def get_model_predictions(config: dict, X_train, y_train, X_test, retrain=False, save_best=True) \
             -> tuple[dict, np.ndarray, GLVQ]:
         """Get predictions from a GLVQ model, either by training a new model or loading an existing one."""
         X_train, X_test = X_train[features_for_LVQ], X_test[features_for_LVQ]
@@ -86,25 +84,45 @@ if __name__ == '__main__':
         return config, predictions, model
 
 
-    def gridsearch_glvq(X_train, y_train, X_test, y_test, base_config: dict, param_grid: dict, n_jobs=8):
-        """Perform grid search for the best GLVQ model."""
+    def get_solver_options_grid() -> list:
+        """Return a parameter grid with solver options and related parameters for GLVQ grid search."""
+        solver_types = ['sgd', 'adam', 'bfgs']  # Available solver options from sklvq
+        distance_types = ['euclidean', 'squared-euclidean']
+        prototype_configs = [[2, 3], [2, 2], [3, 2], [3,3]]
+
+        # Create a list of dictionaries for each combination
+        param_grid = [
+            {
+                'glvq_params': {'solver_type': solver, 'distance_type': distance},
+                'prototypes': prot
+            }
+            for solver in solver_types
+            for distance in distance_types
+            for prot in prototype_configs
+        ]
+        return param_grid
+
+
+    def gridsearch_glvq(X_train, y_train, X_test, y_test, base_config: dict, param_grid: list, n_jobs=4):
+        """Perform grid search for the best GLVQ model based on F1 score for the positive class."""
         results = []
-        best_acc = 0.0
+        best_f1 = 0.0
         best_config = None
         best_model = None
 
-        grid = list(ParameterGrid(param_grid))
-        print(f"Total parameter combinations: {len(grid)}")
+        print(f"Total parameter combinations: {len(param_grid)}")
 
-        search_results = Parallel(n_jobs=n_jobs)(
-            delayed(get_model_predictions)(copy.deepcopy(base_config) | params, X_train, y_train, X_test, retrain=True)
-            for params in tqdm(grid, desc="Gridsearch")
+        search_results = Parallel(n_jobs=n_jobs, verbose=10)(
+            delayed(get_model_predictions)(copy.deepcopy(base_config) | params, X_train, y_train, X_test, retrain=True,
+                                           save_best=False)
+            for params in tqdm(param_grid, desc="Gridsearch")
         )
 
-        for config, acc, model in search_results:
-            results.append({'config': config, 'accuracy': acc})
-            if acc > best_acc:
-                best_acc = acc
+        for config, predictions, model in search_results:
+            f1 = f1_score(y_test, predictions, pos_label=1)
+            results.append({'config': config, 'f1_score': f1})
+            if f1 > best_f1:
+                best_f1 = f1
                 best_config = config
                 best_model = model
 
@@ -118,27 +136,41 @@ if __name__ == '__main__':
 
         return best_config, best_model, results
 
+    def big_search():
+        for ws in [5, 7, 10]:
+            df = load_prepared(f'data/hole{ws}', sample_frac=1)
+            X_train, y_train, X_test, y_test = train_split_by_column(df, 'hole', 0.8)
 
-    ws = 5
-    df = load_prepared(f'data/hole{ws}', sample_frac=1)
-    X_train, y_train, X_test, y_test = train_split_by_column(df, 'hole', 0.9)
+            # Base configuration
+            base_config = {
+                'ws': ws,
+                'use_resampling': True,
+                'cols': features_for_LVQ,
+                'resampling_ratio': 1.0,
+            }
 
-    # Base configuration
-    base_config = {
-        'ws': ws,
-        'use_resampling': True,
-        'cols': features_for_LVQ,
-        'resampling_ratio': 1.0,
-        'glvq_params': {
-            'solver_type': 'sgd',
-            'distance_type': 'euclidean',
-        },
-        'prototypes': [2,2]
-    }
-    param_grid = {}
+            # Get parameter grid with solver options
+            param_grid = get_solver_options_grid()
 
+            # Perform grid search
+            best_config, best_model, results = gridsearch_glvq(X_train, y_train, X_test, y_test, base_config, param_grid)
 
-    config, y_pred, model = get_model_predictions(base_config, X_train, y_train, X_test)
+            # Print best configuration and its performance
+            print(f"Best Configuration for ws {ws}:")
+            pprint(best_config)
+            y_pred_best = best_model.predict(X_test[features_for_LVQ])
+            print(f"Classification Report for Best {ws} Model:")
+            print(classification_report(y_test, y_pred_best))
 
+            # Show top results
+            results_df = pd.DataFrame(results)
+            results_df = results_df.sort_values('f1_score', ascending=False)
+            print(f"Top 3 Configurations by F1 Score for {ws}:")
+            print(results_df.head(3))
 
-
+    big_search()
+    model_path = 'models/LVQs/glvq_hole10_[1_1]_adam_squared-euclidean.pkl'
+    # with open(model_path, 'rb') as f:
+    #     model = pickle.load(f)
+    #
+    # lvq_radar_chart(model, features_for_LVQ)

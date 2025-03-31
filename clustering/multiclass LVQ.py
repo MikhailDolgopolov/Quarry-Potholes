@@ -10,7 +10,7 @@ from sklearn.utils import resample
 from sklvq import GLVQ
 from tqdm import tqdm
 
-from evaluate.draw_functions import LVQ_class_separation
+from evaluate.draw_functions import lvq_class_separation
 from exploration.data_read import load_prepared
 from helpers import train_split_by_column
 
@@ -129,8 +129,4 @@ if __name__ == '__main__':
         params = f"protos{','.join(map(str, prototypes))}"
         # img_path = f'images/LVQ_comparison/ws{ws}/{params}.png'
         # if report['accuracy'] >= 0.7:
-        LVQ_class_separation(
-                model, model.prototypes_, config['cols'],
-                accuracy=report['accuracy'],
-                # save_path=img_path
-            )
+        lvq_class_separation(model, model.prototypes_, config['cols'])
