@@ -12,7 +12,7 @@ from sklearn.utils import resample
 from sklvq import GLVQ
 from sklearn.model_selection import ParameterGrid
 
-from evaluate.draw_functions import lvq_class_separation, lvq_radar_chart
+from evaluate.draw_functions import lvq_class_separation
 from exploration.data_read import load_prepared
 from helpers import train_split_by_column
 
@@ -32,7 +32,7 @@ if __name__ == '__main__':
     def generate_model_filename(config):
         """Generate a filename based on the configuration."""
         return (
-            f"glvq_hole{config['ws']}_[{'_'.join(map(str, config['prototypes']))}]_"
+            f"glvq_hole{config['ws']}_[{'_'.join(map(str, config['glvq_params']['prototype_n_per_class']))}]_"
             f"{config['glvq_params']['solver_type']}_{config['glvq_params']['distance_type']}.pkl"
         )
 
@@ -93,8 +93,9 @@ if __name__ == '__main__':
         # Create a list of dictionaries for each combination
         param_grid = [
             {
-                'glvq_params': {'solver_type': solver, 'distance_type': distance},
-                'prototypes': prot
+                'glvq_params': {'solver_type': solver,
+                                'distance_type': distance,
+                                'prototype_n_per_class': prot},
             }
             for solver in solver_types
             for distance in distance_types
@@ -137,8 +138,8 @@ if __name__ == '__main__':
         return best_config, best_model, results
 
     def big_search():
-        for ws in [5, 7, 10]:
-            df = load_prepared(f'data/hole{ws}', sample_frac=1)
+        for ws in [7 ,10]:
+            df = load_prepared(f'data/hole{ws}', sample_frac=0.8)
             X_train, y_train, X_test, y_test = train_split_by_column(df, 'hole', 0.8)
 
             # Base configuration
@@ -168,9 +169,12 @@ if __name__ == '__main__':
             print(f"Top 3 Configurations by F1 Score for {ws}:")
             print(results_df.head(3))
 
-    big_search()
-    model_path = 'models/LVQs/glvq_hole10_[1_1]_adam_squared-euclidean.pkl'
-    # with open(model_path, 'rb') as f:
-    #     model = pickle.load(f)
+    # big_search()
+    ws=10
+    df = load_prepared(f'data/hole{ws}', sample_frac=1)
+    X, y = df[features_for_LVQ], df['hole']
+    model_path = 'models/LVQs/glvq_hole10_[3_3]_adam_squared-euclidean.pkl'
+    with open(model_path, 'rb') as f:
+        model = pickle.load(f)
     #
-    # lvq_radar_chart(model, features_for_LVQ)
+    lvq_class_separation(model, X, features_for_LVQ)

@@ -11,7 +11,7 @@ import pandas as pd
 from tqdm import trange
 
 from clustering.LVQ import features_for_LVQ
-from exploration.data_prep import current_transformer
+from exploration.data_prep import data_transformers
 from exploration.data_read import read_new_points, read_truck_data
 from helpers import discretize_to_levels, select_random_file
 
@@ -20,50 +20,8 @@ model_path = "models\LVQs\glvq_hole5_[2_2]_resampled1.1.pkl"
 with open(model_path, 'rb') as f:
     model = pickle.load(f)
 
-
-
-
-# def plot_lines(df):
-#     data = current_transformer.transform(df)
-#     target='class'
-#
-#
-#     Xy = data.drop(columns=['lat', 'lon'])
-#
-#     X, y = Xy.drop(columns=[target]), np.clip(Xy[target], 0, 120)
-#
-#     pred = model.predict(X)
-#     # pred = discretize_to_levels(pred, np.arange(0, 120, 30))
-#
-#     plt.figure(figsize=(12, 6))
-#
-#     # Plot true values (y) and predictions (pred)
-#     plt.plot(np.arange(len(pred)), y, label='True Values', color='blue', alpha=0.7)
-#     plt.plot(np.arange(len(pred)), pred, label='Predictions', color='red', linestyle='-', alpha=0.7)
-#     mask = (y > 0) & (pred > y)
-#     plt.fill_between(
-#         np.arange(len(pred)),
-#         np.where(mask, pred, y),
-#         # where=np.where(pred>y, True, False),
-#         color='black',
-#         alpha=0.3,
-#         label='Concordance'
-#     )
-#
-#     # Add labels and title
-#     plt.xlabel('Seconds')
-#     plt.ylabel('Pothole Severity')
-#     plt.title('True Values vs Predictions')
-#     plt.legend()
-#     plt.grid(True, alpha=0.3)
-#
-#     # Show plot
-#     plt.tight_layout()
-#     plt.show()
-    # plt.savefig(f'images/{select}.png')
-
-def draw_map(df, r_id, support):
-    data = current_transformer.transform(df)
+def draw_map(df, rolling_window:int, r_id, support):
+    data = data_transformers[rolling_window].transform(df)
 
     X, y = data[features_for_LVQ], data[target]
 

@@ -76,7 +76,7 @@ def get_columns(folder_path: str, keep_latlon=False):
 
 def load_prepared(folder_path:str, keep_latlon=False, sample_frac=1, x_selection:list[str]=None)->pd.DataFrame:
     dataframes = []
-    for filename in tqdm(os.listdir(folder_path), desc='Loading data'):
+    for filename in os.listdir(folder_path):
         if filename.endswith('.csv'):
             file_path = os.path.join(folder_path, filename)
             df = pd.read_csv(file_path, sep=';', dtype=np.float32)

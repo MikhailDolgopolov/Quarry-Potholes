@@ -2,21 +2,21 @@ from pathlib import Path
 from typing import Callable
 
 import pandas as pd
+from sklearn.model_selection import ParameterGrid
 from tqdm import tqdm
 
 from ComplexTransformer import MultiWindowRollingTransformer
 from Transformer import RollingWindowTransformer
 from exploration.data_read import read_truck_data, read_raw_dirdata, read_new_points
 
-target, ws = 'class', 10
-current_transformer = RollingWindowTransformer({
-    'rot_X': ['std', 'cv', 'iqr', 'skew'],
-    'rot_Y': ['std', 'cv', 'iqr', 'skew'],
-    'acc_X': ['std', 'kurt', 'var', 'iqr',],
-    'acc_Y': ['std', 'kurt', 'var', 'iqr',],
-    'acc_Z': ['std', 'kurt', 'iqr', 'range'],
-    'acc': ['std', 'var', 'iqr', 'kurt', 'cv'],
-}, window_size=ws)
+data_transformers = {ws:RollingWindowTransformer({
+    'rot_X': ['std', 'cv', 'iqr', 'skew', 'var'],
+    'rot_Y': ['std', 'cv', 'iqr', 'skew', 'var'],
+    'acc_X': ['std', 'kurt', 'var', 'iqr', ],
+    'acc_Y': ['std', 'kurt', 'var', 'iqr', ],
+    'acc_Z': ['std', 'kurt', 'var','iqr', 'range'],
+    'acc': ['std', 'var', 'iqr', 'kurt', 'cv', 'skew'],
+}, window_size=ws) for ws in [5, 7, 10]}
 
 
 def preprocess_data(
@@ -66,17 +66,14 @@ def preprocess_data(
 
     print(f"Processed {len(preprocessed_dfs)} paths with {sum(num_tracks)} total tracks")
 
-
-if __name__ == "__main__":
-
+def prepare_ws(target, ws):
     tracks = range(1, 36)
     dir_path_func = lambda n: f"data/routes/route{n}"
 
-
     output_folder = f"data/{target}{ws}"
 
-    read_func = read_truck_data if target=='hole' else read_new_points
-    t = None if target=='raw' else current_transformer
+    read_func = read_truck_data if target == 'hole' else read_new_points
+    t = None if target == 'raw' else data_transformers[ws]
     # Run preprocessing
     preprocess_data(
         tracks=tracks,
@@ -85,3 +82,11 @@ if __name__ == "__main__":
         paths_func=dir_path_func,
         read_func=read_func,
     )
+
+if __name__ == "__main__":
+    variants = {
+        "target": ["hole","class"],
+        "ws": [5, 7, 10]
+    }
+    for combination in ParameterGrid(variants):
+        prepare_ws(**combination)
