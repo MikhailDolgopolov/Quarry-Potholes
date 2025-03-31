@@ -1,9 +1,17 @@
-Without StandardScaler:
+GLVQ by feature elimination:
 10 features
 Best feature set: ('acc_X_std', 'acc_X_kurt', 'acc_X_var', 'acc_X_iqr', 'acc_Y_var', 'acc_Y_iqr', 'acc_std', 'acc_var', 'acc_iqr', 'acc_kurt')
-Best Jeffries-Matusita distance: 1.0185598857036022
+Best Jeffries-Matusita distance: 1.02
+RFC ROC AUC: 0.74
 
-With scaler:
-7 features
-Best feature set: ('acc_X_std', 'acc_X_var', 'acc_X_iqr', 'acc_Z_std', 'acc_Z_range', 'acc_std', 'acc_var')
-Best Jeffries-Matusita distance: 0.9175356719040149
+Random forest 10
+9 features
+['acc_X_var', 'acc_X_std', 'acc_Z_std', 'acc_std', 'acc_Z_range', 'acc_var', 'acc_Z_iqr', 'acc_cv', 'acc_X_iqr']
+0.77
+JM distance: 0.49
+
+Random forest 5
+8 features
+['acc_Z_std', 'acc_X_std', 'acc_X_var', 'acc_var', 'acc_std', 'acc_Z_range', 'acc_cv', 'acc_Z_iqr']
+0.78
+JM distance: 0.50

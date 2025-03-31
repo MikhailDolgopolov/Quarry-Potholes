@@ -1,96 +1,59 @@
+import itertools
 import os
 import pickle
-
+import copy
+from pathlib import Path
+from pprint import pprint
 import numpy as np
 import pandas as pd
-from sklearn.metrics import classification_report
-from sklearn.preprocessing import StandardScaler
+from tqdm import tqdm
+from joblib import Parallel, delayed
+from sklearn.metrics import classification_report, accuracy_score
 from sklearn.utils import resample
 from sklvq import GLVQ
+from sklearn.model_selection import ParameterGrid
 
 from evaluate.draw_functions import LVQ_class_separation
 from exploration.data_read import load_prepared
 from helpers import train_split_by_column
 
-def save_model(model, scaler, model_path, scaler_path):
-    """Save model and scaler to disk using pickle."""
-    with open(model_path, 'wb') as f:
-        pickle.dump(model, f)
-    if scaler:
-        with open(scaler_path, 'wb') as f:
-            pickle.dump(scaler, f)
+features_for_LVQ = ['acc_Z_std', 'acc_X_std', 'acc_X_var', 'acc_var', 'acc_std', 'acc_Z_range', 'acc_cv', 'acc_Z_iqr',
+                    'acc_X_iqr']
 
-def load_model(model_path, scaler_path):
-    """Load model and scaler from disk."""
+def predict_with_LVQ(model_path, X) -> np.ndarray:
+    """Load a saved GLVQ model and predict using predefined LVQ columns."""
+    if not os.path.exists(model_path):
+        raise FileNotFoundError(f"Model file not found: {model_path}")
+
     with open(model_path, 'rb') as f:
         model = pickle.load(f)
-    scaler = None
-    if os.path.exists(scaler_path):
-        with open(scaler_path, 'rb') as f:
-            scaler = pickle.load(f)
-    return model, scaler
+    return model.predict(X[features_for_LVQ])
+
+if __name__ == '__main__':
+
+    def generate_model_filename(config):
+        """Generate a filename based on the configuration."""
+        return (
+            f"glvq_hole{config['ws']}_[{'_'.join(map(str, config['prototypes']))}]_"
+            f"{config['glvq_params']['solver_type']}_{config['glvq_params']['distance_type']}.pkl"
+        )
 
 
-def get_model_predictions(config, retrain=False):
-    """
-    Get predictions from a GLVQ model based on configuration parameters.
-    Trains and saves new model if none exists (with user confirmation).
+    def get_model_predictions(config: dict, X_train, y_train, X_test, retrain=False, save_best=True)\
+            -> tuple[dict, np.ndarray, GLVQ]:
+        """Get predictions from a GLVQ model, either by training a new model or loading an existing one."""
+        X_train, X_test = X_train[features_for_LVQ], X_test[features_for_LVQ]
+        model_dir = 'models/LVQs'
+        os.makedirs(model_dir, exist_ok=True)
 
-    Args:
-        config (dict): Configuration dictionary with parameters
-        retrain (bool): Force retraining even if model exists
+        model_filename = generate_model_filename(config)
+        model_path = Path(model_dir) / model_filename
+        if not retrain and os.path.exists(model_path):
+            with open(model_path, 'rb') as f:
+                model = pickle.load(f)
+            return config, model.predict(X_test), model
 
-    Returns:
-        tuple: (y_pred, y_test, model, scaler) or None if aborted
-    """
-    # Unpack configuration
-    prototypes = config['prototypes']
-    target = 'hole'
-    ws = config['ws']
-    use_scaler = config['use_scaler']
-    use_resampling = config['use_resampling']
-    res_ratio = config['res_ratio']
-    imp_cols = config['imp_cols']
-    sample_frac = config['sample_frac']
-    test_size = config['test_size']
-
-    # Create model paths
-    prots = f'[{",".join(map(str, prototypes))}]'
-    res_option = f'-resampled{res_ratio}' if use_resampling else ''
-    scaled = 'scaled' if use_scaler else 'original'
-
-    model_dir = 'models/LVQs'
-    os.makedirs(model_dir, exist_ok=True)
-
-    model_path = os.path.join(
-        model_dir,
-        f'glvq_{target}{ws}-{scaled}-{prots}{res_option}.pkl'
-    )
-    scaler_path = os.path.join(
-        model_dir,
-        f'scaler_{target}{ws}-{scaled}-{prots}{res_option}.pkl'
-    )
-
-    # Try to load existing model
-    if not retrain and os.path.exists(model_path):
-        print(f"Loading existing model from {model_path}")
-        model, scaler = load_model(model_path, scaler_path)
-        data_loaded = False
-    else:
-        # User confirmation for training
-        if not retrain:
-            response = input(f"No model found at {model_path}. Train new model? [y/N]: ").strip().lower()
-            if response != 'y':
-                print("Model training aborted by user")
-                return None, None, None, None
-
-        # Load and prepare data
-        print("Loading and preparing data...")
-        df = load_prepared(f'data/{target}{ws}', x_selection=imp_cols, sample_frac=sample_frac)
-        X_train, y_train, X_test, y_test = train_split_by_column(df, target, test_size)
-
-        # Handle class imbalance
-        if use_resampling:
+        if config.get('use_resampling', False):
             minority_class = 1
             X_minority = X_train[y_train == minority_class]
             y_minority = y_train[y_train == minority_class]
@@ -100,7 +63,7 @@ def get_model_predictions(config, retrain=False):
             X_minority_oversampled, y_minority_oversampled = resample(
                 X_minority, y_minority,
                 replace=True,
-                n_samples=int(len(X_majority) * res_ratio),
+                n_samples=int(len(X_majority) * config['resampling_ratio']),
                 random_state=42
             )
 
@@ -110,63 +73,72 @@ def get_model_predictions(config, retrain=False):
             X_train_processed = X_train.copy()
             y_train_processed = y_train.copy()
 
-        # Feature scaling
-        scaler = StandardScaler() if use_scaler else None
-        if scaler:
-            X_train_scaled = pd.DataFrame(
-                scaler.fit_transform(X_train_processed),
-                columns=X_train_processed.columns
-            )
-            X_test_scaled = pd.DataFrame(
-                scaler.transform(X_test),
-                columns=X_test.columns
-            )
-        else:
-            X_train_scaled = X_train_processed.copy()
-            X_test_scaled = X_test.copy()
+        model = GLVQ(**config['glvq_params'])
+        model.fit(X_train_processed, y_train_processed)
+        predictions = model.predict(X_test)
 
-        # Train and save model
-        print("Training new model...")
-        model = GLVQ(prototype_n_per_class=np.array(prototypes))
-        model.fit(X_train_scaled, y_train_processed)
-        save_model(model, scaler, model_path, scaler_path)
-        print(f"Model saved to {model_path}")
-        data_loaded = True
+        if save_best:
+            best_model_path = os.path.join(model_dir, model_filename)
+            with open(best_model_path, 'wb') as f:
+                pickle.dump(model, f)
+            print(f"Model saved to {best_model_path}")
 
-    # Generate predictions
-    if not data_loaded:
-        df = load_prepared(f'data/{target}{ws}', x_selection=imp_cols, sample_frac=sample_frac)
-        _, _, X_test, y_test = train_split_by_column(df, target, test_size)
-
-        if scaler:
-            X_test_scaled = pd.DataFrame(
-                scaler.transform(X_test),
-                columns=X_test.columns
-            )
-        else:
-            X_test_scaled = X_test.copy()
-
-    y_pred = model.predict(X_test_scaled)
-    return y_pred, y_test, model, scaler
+        return config, predictions, model
 
 
-# Example usage:
-if __name__ == '__main__':
-    config = {
-        'prototypes': [2, 2],
-        'ws': 7,
-        'use_scaler': False,
+    def gridsearch_glvq(X_train, y_train, X_test, y_test, base_config: dict, param_grid: dict, n_jobs=8):
+        """Perform grid search for the best GLVQ model."""
+        results = []
+        best_acc = 0.0
+        best_config = None
+        best_model = None
+
+        grid = list(ParameterGrid(param_grid))
+        print(f"Total parameter combinations: {len(grid)}")
+
+        search_results = Parallel(n_jobs=n_jobs)(
+            delayed(get_model_predictions)(copy.deepcopy(base_config) | params, X_train, y_train, X_test, retrain=True)
+            for params in tqdm(grid, desc="Gridsearch")
+        )
+
+        for config, acc, model in search_results:
+            results.append({'config': config, 'accuracy': acc})
+            if acc > best_acc:
+                best_acc = acc
+                best_config = config
+                best_model = model
+
+        # Save best model with its configuration
+        if best_model:
+            model_filename = generate_model_filename(best_config)
+            model_path = os.path.join('models/LVQs', model_filename)
+            with open(model_path, 'wb') as f:
+                pickle.dump(best_model, f)
+            print(f"Best model saved to {model_path}")
+
+        return best_config, best_model, results
+
+
+    ws = 5
+    df = load_prepared(f'data/hole{ws}', sample_frac=1)
+    X_train, y_train, X_test, y_test = train_split_by_column(df, 'hole', 0.9)
+
+    # Base configuration
+    base_config = {
+        'ws': ws,
         'use_resampling': True,
-        'res_ratio': 1.2,
-        'imp_cols': ['acc_X_std', 'acc_X_kurt', 'acc_X_var', 'acc_X_iqr',
-                     'acc_Y_var', 'acc_Y_iqr', 'acc_std', 'acc_var', 'acc_iqr', 'acc_kurt'],
-        'sample_frac': 0.3,
-        'test_size': 0.2
+        'cols': features_for_LVQ,
+        'resampling_ratio': 1.0,
+        'glvq_params': {
+            'solver_type': 'sgd',
+            'distance_type': 'euclidean',
+        },
+        'prototypes': [2,2]
     }
+    param_grid = {}
 
-    y_pred, y_test, model, scaler = get_model_predictions(config)
 
-    if y_pred is not None:
-        print("\nClassification Report:")
-        print(classification_report(y_test, y_pred))
-        # LVQ_class_separation(model, model.prototypes_, config['imp_cols'])
+    config, y_pred, model = get_model_predictions(base_config, X_train, y_train, X_test)
+
+
+

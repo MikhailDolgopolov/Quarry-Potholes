@@ -1,5 +1,7 @@
 import numpy as np
 import pandas as pd
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.inspection import permutation_importance
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import cross_val_score
 
@@ -182,13 +184,42 @@ def multivariate_bhattacharyya_distance(X: pd.DataFrame, y: pd.Series) -> float:
 
 if __name__ == '__main__':
     target, ws = 'hole', 5
-    # Load data and split (replace these with your actual functions)
-    df = load_prepared(f'data/{target}{ws}', keep_latlon=False, sample_frac=1)
+
+    select = ['acc_Z_std', 'acc_X_std', 'acc_X_var', 'acc_var', 'acc_std', 'acc_Z_range', 'acc_cv', 'acc_Z_iqr']
+    # select=None
+    df = load_prepared(f'data/{target}{ws}', keep_latlon=False, sample_frac=0.2, x_selection=select)
     X_train, y_train, X_test, y_test = train_split_by_column(df, target, 0.5)
 
-    lr = LogisticRegression(max_iter=1000)
-    cv_scores = cross_val_score(lr, X_train, y_train, cv=5, scoring='f1_weighted')
-    print("\nLogistic Regression CV Accuracy: {:.3f} ± {:.3f}".format(np.mean(cv_scores), np.std(cv_scores)))
+    # model = RandomForestClassifier()
+    #
+    # scores = cross_val_score(model, X_train, y_train, cv=4, scoring='roc_auc')
+    # print(f"Mean ROC AUC: {scores.mean():.3f}")
 
+    # model.fit(X_train, y_train)
+    # results = permutation_importance(
+    #     model, X_test, y_test,
+    #     n_repeats=10,
+    #     scoring='roc_auc',
+    #     random_state=42
+    # )
+    #
+    # # Sort features by mean importance
+    # sorted_idx = results.importances_mean.argsort()[::-1]
+    # print("Feature ranking:")
+    # for i in sorted_idx:
+    #     print(f"{X_train.columns[i]}: {results.importances_mean[i]:.3f} ± {results.importances_std[i]:.3f}")
+    # print([X_train.columns[i] for i in sorted_idx])
+    # import matplotlib.pyplot as plt
+    #
+    # plt.boxplot(results.importances[sorted_idx].T, vert=False)
+    # plt.yticks(ticks=range(len(sorted_idx)), labels=X_train.columns[sorted_idx])
+    # plt.title("Permutation Importance (ROC AUC)")
+    # plt.xlabel("AUC Decrease")
+    # plt.show()
+    #
+    # lr = LogisticRegression(max_iter=1000)
+    # cv_scores = cross_val_score(lr, X_train, y_train, cv=5, scoring='f1_weighted')
+    # print("\nLogistic Regression CV Accuracy: {:.3f} ± {:.3f}".format(np.mean(cv_scores), np.std(cv_scores)))
+    #
     jm_distance = jeffries_matusita_distance(X_train, y_train)
     print("Jeffries-Matusita Distance:", jm_distance)

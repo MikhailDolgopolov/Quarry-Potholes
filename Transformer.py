@@ -8,6 +8,8 @@ OpType = Literal['', 'min', 'max', 'range', 'std', 'mean', 'var', 'sum', 'skew',
 
 class RollingWindowTransformer(BaseEstimator, TransformerMixin):
     def __init__(self, column_params: Dict[str, List[OpType]], window_size: int = 5):
+        if window_size <4:
+            raise ValueError("Window size must be at least 4.")
         self.window_size = window_size
         self.column_transform = column_params
 
