@@ -1,6 +1,8 @@
+import hashlib
 import os
 import pickle
 import random
+from pathlib import Path
 
 import numpy as np
 
@@ -10,6 +12,8 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.utils import Interval
 from sklearn.utils._param_validation import RealNotInt
+
+from models.model_registry import actualize_registry
 
 
 def calculate_summed_magnitude(df, prefix):
@@ -97,18 +101,4 @@ def select_random_file(folder_path):
 
 
 if __name__ == '__main__':
-    import os
-
-    directory = "models/LVQs"  # Change this to your actual directory
-    suffix = "-resampled1.2"  # Change this to your desired suffix
-
-    # for filename in os.listdir(directory):
-    #     old_path = os.path.join(directory, filename)
-    #
-    #     if os.path.isfile(old_path):  # Ensure it's a file
-    #         name, ext = os.path.splitext(filename)  # Separate name and extension
-    #         new_filename = f"{name}{suffix}{ext}"  # Append suffix before extension
-    #         new_path = os.path.join(directory, new_filename)
-    #
-    #         os.rename(old_path, new_path)
-    #         print(f"Renamed: {filename} -> {new_filename}")
+    actualize_registry()

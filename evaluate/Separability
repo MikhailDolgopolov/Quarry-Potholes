@@ -1,6 +1,0 @@
-hole5
-RandomForest
-['acc_X_var', 'acc_X_std', 'acc_Z_std', 'acc_var', 'acc_cv', 'acc_Z_var', 'acc_Z_range', 'acc_std', 'acc_X_iqr', 'acc_Y_var']
-
-L1 KogReg
-['acc_X_std', 'acc_X_kurt', 'acc_X_var', 'acc_X_iqr', 'acc_Y_kurt', 'acc_Y_var', 'acc_Z_kurt', 'acc_Z_iqr', 'acc_Z_range', 'acc_std', 'acc_var']

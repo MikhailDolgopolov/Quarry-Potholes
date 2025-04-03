@@ -66,14 +66,14 @@ def preprocess_data(
 
     print(f"Processed {len(preprocessed_dfs)} paths with {sum(num_tracks)} total tracks")
 
-def prepare_ws(target, ws):
+def prepare_ws(target, ws, raw=False):
     tracks = range(1, 36)
     dir_path_func = lambda n: f"data/routes/route{n}"
 
     output_folder = f"data/{target}{ws}"
 
     read_func = read_truck_data if target == 'hole' else read_new_points
-    t = None if target == 'raw' else data_transformers[ws]
+    t = None if raw else data_transformers[ws]
     # Run preprocessing
     preprocess_data(
         tracks=tracks,
@@ -85,8 +85,8 @@ def prepare_ws(target, ws):
 
 if __name__ == "__main__":
     variants = {
-        "target": ["hole","class"],
-        "ws": [5, 7, 10]
+        "target": ["hole"],
+        "ws": [0]
     }
     for combination in ParameterGrid(variants):
-        prepare_ws(**combination)
+        prepare_ws(**combination, raw=True)
