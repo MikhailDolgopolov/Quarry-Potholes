@@ -11,7 +11,7 @@ from sklearn.metrics import roc_auc_score
 from sklearn.inspection import permutation_importance
 from tqdm import trange
 
-from exploration.data_read import load_prepared
+from exploration.data_read import load_preprocessed
 from helpers import train_split_by_column
 
 if __name__ == '__main__':
@@ -26,7 +26,7 @@ if __name__ == '__main__':
         }
 
         for i in range(3):
-            df = load_prepared(f'data/{target}{ws}', keep_latlon=False, sample_frac=0.3)
+            df = load_preprocessed(f'data/{target}{ws}', keep_latlon=False, sample_frac=0.3)
             X_train, y_train, X_test, y_test = train_split_by_column(df, target, 0.5)
             model = RandomForestClassifier(n_jobs=4)
             model.fit(X_train, y_train)
@@ -40,7 +40,7 @@ if __name__ == '__main__':
             results[ws_key]["permutation_importance"].append(selected_features)
 
         for i in range(3):
-            df = load_prepared(f'data/{target}{ws}', keep_latlon=False, sample_frac=0.5)
+            df = load_preprocessed(f'data/{target}{ws}', keep_latlon=False, sample_frac=0.5)
             X_train, y_train, X_test, y_test = train_split_by_column(df, target, 0.5)
             lr = LogisticRegression(penalty='l1', solver='liblinear', max_iter=700)
             lr.fit(X_train, y_train)

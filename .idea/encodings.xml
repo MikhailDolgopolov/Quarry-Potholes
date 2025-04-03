@@ -2,6 +2,7 @@
 <project version="4">
   <component name="Encoding">
     <file url="file://$PROJECT_DIR$/data/routes/route1/1_w.csv" charset="windows-1251" />
+    <file url="file://$PROJECT_DIR$/data/routes/route1/2_w.csv" charset="windows-1251" />
     <file url="file://$PROJECT_DIR$/data/routes/route2/2_w.csv" charset="windows-1251" />
     <file url="file://$PROJECT_DIR$/data/routes/route4/3_w.csv" charset="windows-1251" />
   </component>

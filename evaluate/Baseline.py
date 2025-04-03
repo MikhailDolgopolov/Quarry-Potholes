@@ -2,11 +2,11 @@ import numpy as np
 from sklearn.metrics import classification_report
 from statsmodels.discrete.discrete_model import Logit
 
-from exploration.data_read import load_prepared
+from exploration.data_read import load_preprocessed
 from helpers import train_split_by_column
 
 target, ws = 'hole', 0
-df = load_prepared(f'data/{target}{ws}', keep_latlon=False, sample_frac=1)
+df = load_preprocessed(f'data/{target}{ws}', keep_latlon=False, sample_frac=1)
 X_train, y_train, X_test, y_test = train_split_by_column(df, target, 0.2)
 
 model = Logit(y_train, X_train).fit()

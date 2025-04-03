@@ -1,13 +1,13 @@
 import matplotlib.pyplot as plt
 
-from exploration.data_read import read_new_points
+from exploration.data_read import read_track
 
 if __name__ == '__main__':
     # target, ws = 'class', 10
     # df_full = load_prepared(f'data/{target}{ws}', keep_latlon=True, sample_frac=1)
     # print(len(df_full))
 
-    df = read_new_points('data/routes/route5/2_w.csv')
+    df = read_track('data/routes/route5/2_w.csv')
     # print(df.describe())
     #
     plt.figure(figsize=(10, 6))

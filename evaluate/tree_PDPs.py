@@ -2,11 +2,11 @@ import pickle
 import numpy as np
 from matplotlib import pyplot as plt
 from sklearn.inspection import PartialDependenceDisplay
-from exploration.data_read import load_prepared
+from exploration.data_read import load_preprocessed
 
 # Load data
 target = 'class'  # Consider renaming if it's a continuous target
-df = load_prepared(f'data/{target}10', sample_frac=0.3)
+df = load_preprocessed(f'data/{target}10', sample_frac=0.3)
 X, y = df.drop(columns=[target]), df[target]  # Renamed y_test to y
 
 # Load model

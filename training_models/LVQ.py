@@ -12,7 +12,7 @@ from sklearn.utils import resample
 from sklvq import GLVQ
 
 from evaluate.draw_functions import lvq_class_separation
-from exploration.data_read import load_prepared
+from exploration.data_read import load_preprocessed
 from helpers import train_split_by_column
 
 features_for_LVQ = ['acc_Z_std', 'acc_X_std', 'acc_X_var', 'acc_var', 'acc_std', 'acc_Z_range', 'acc_cv', 'acc_Z_iqr',
@@ -130,7 +130,7 @@ if __name__ == '__main__':
 
     def big_search():
         for ws in [7 ,10]:
-            df = load_prepared(f'data/hole{ws}', sample_frac=0.8)
+            df = load_preprocessed(f'data/hole{ws}', sample_frac=0.8)
             X_train, y_train, X_test, y_test = train_split_by_column(df, 'hole', 0.8)
 
             # Base configuration
@@ -162,7 +162,7 @@ if __name__ == '__main__':
 
     # big_search()
     ws=10
-    df = load_prepared(f'data/hole{ws}', sample_frac=1)
+    df = load_preprocessed(f'data/hole{ws}', sample_frac=1)
     X, y = df[features_for_LVQ], df['hole']
     model_path = 'models/LVQs/glvq_hole10_[3_3]_adam_squared-euclidean.pkl'
     with open(model_path, 'rb') as f:

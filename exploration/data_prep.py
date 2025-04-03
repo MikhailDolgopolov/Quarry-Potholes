@@ -7,7 +7,7 @@ from tqdm import tqdm
 
 from ComplexTransformer import MultiWindowRollingTransformer
 from Transformer import RollingWindowTransformer
-from exploration.data_read import read_truck_data, read_raw_dirdata, read_new_points
+from exploration.data_read import read_raw_dirdata, read_track
 
 data_transformers = {ws:RollingWindowTransformer({
     'rot_X': ['std', 'cv', 'iqr', 'skew', 'var'],
@@ -24,7 +24,6 @@ def preprocess_data(
         transformer,
         output_folder,
         paths_func: Callable[[int], str],
-        read_func=read_truck_data,
         dir_pattern=r'[0-9]{1,3}_w',
 ):
     """
@@ -45,7 +44,7 @@ def preprocess_data(
     # Process each directory
     mould = lambda x: transformer.transform(x) if transformer is not None else x
     for dir_name in tqdm(dir_names, desc="Processing paths"):
-        new_path = read_raw_dirdata(dir_name, dir_pattern, read_func)
+        new_path = read_raw_dirdata(dir_name, dir_pattern, read_track)
         rolled_new_paths = [mould(df) for df in new_path if not df.empty]
 
         routeID = Path(dir_name).name
@@ -66,13 +65,12 @@ def preprocess_data(
 
     print(f"Processed {len(preprocessed_dfs)} paths with {sum(num_tracks)} total tracks")
 
-def prepare_ws(target, ws, raw=False):
+def roll_data(ws, input_folder='data/routes', raw=False):
     tracks = range(1, 36)
-    dir_path_func = lambda n: f"data/routes/route{n}"
+    dir_path_func = lambda n: f"{input_folder}/route{n}"
 
-    output_folder = f"data/{target}{ws}"
+    output_folder = f"data/rolled{ws}"
 
-    read_func = read_truck_data if target == 'hole' else read_new_points
     t = None if raw else data_transformers[ws]
     # Run preprocessing
     preprocess_data(
@@ -80,13 +78,12 @@ def prepare_ws(target, ws, raw=False):
         transformer=t,
         output_folder=output_folder,
         paths_func=dir_path_func,
-        read_func=read_func,
     )
 
 if __name__ == "__main__":
     variants = {
-        "target": ["hole"],
-        "ws": [0]
+        "ws": [7],
+        "input_folder": ["data/routes", "data/routes-lerp"]
     }
     for combination in ParameterGrid(variants):
-        prepare_ws(**combination, raw=True)
+        roll_data(**combination)

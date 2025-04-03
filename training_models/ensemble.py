@@ -5,12 +5,12 @@ from scipy.stats import mode
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 from sklearn.metrics import classification_report, confusion_matrix, f1_score
 
-from exploration.data_read import load_prepared
+from exploration.data_read import load_preprocessed
 from helpers import train_split_by_column
 from models.model_registry import predict_with_my_model, predict_with_top_models
 
 target, ws = 'hole', 10
-df = load_prepared(f'data/{target}{ws}', keep_latlon=False, sample_frac=1)
+df = load_preprocessed(f'data/{target}{ws}', keep_latlon=False, sample_frac=1)
 X_train, y_train, X_test, y_test = train_split_by_column(df, target, 0.2)
 
 from sklearn.linear_model import LogisticRegression

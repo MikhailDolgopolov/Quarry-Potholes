@@ -116,12 +116,12 @@ class CombinedGAM:
 
 # Example usage
 if __name__ == "__main__":
-    from exploration.data_read import load_prepared
+    from exploration.data_read import load_preprocessed
     from helpers import train_split_by_column
 
     # Load and prepare data
     target, window_size = "class", 10
-    df = load_prepared(f"data/{target}{window_size}", sample_frac=0.5)
+    df = load_preprocessed(f"data/{target}{window_size}", sample_frac=0.5)
     X_train, y_train, X_test, y_test = train_split_by_column(df, target, 0.2)
 
     # Initialize and train combined model

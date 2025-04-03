@@ -14,51 +14,7 @@ pd.set_option('display.max_columns', 15)
 pd.set_option('display.width', 1000)
 
 
-def read_truck_data(path: str) -> Optional[pd.DataFrame]:
-    try:
-        #
-        raw_df = pd.read_csv(path, delimiter=';', encoding='windows-1251', index_col=0)
-        raw_df = convert_dash_to_nan(raw_df)
-    except:
-        return None
-    explicit_columns = ['Широта', 'Долгота', 'Скорость']
-    hole_col=''
-    for c in ['nom_point', 'nom_hole']:
-        if c in raw_df:
-            hole_col=c
-    pattern_columns = raw_df.columns[raw_df.columns.str.contains('Ускорение|наклон', regex=True)]
-
-    # Combine columns
-    selected_columns = explicit_columns + list(pattern_columns) + [hole_col]
-
-    new_names = ['lat', 'lon', 'vel', 'acc_X', 'acc_Y', 'acc_Z', 'fb_tilt',
-                 'tilt', 'hole']
-    # print(dict(zip(selected_columns, new_names)))
-    names_map = {selected_columns[i]: new_names[i] for i in range(len(selected_columns))}
-    try:
-        # Filter and rename DataFrame
-        filtered_df = raw_df[selected_columns]
-    except Exception as e:
-        print(f"Trouble with {path}:")
-        print(e)
-        return None
-    df = filtered_df.rename(columns=names_map)
-
-    recentered = ['acc_X', 'acc_Y', 'acc_Z', 'fb_tilt', 'tilt']
-
-    for fix in recentered:
-        mean = df[fix].mean()
-        if abs(round(mean)) > 0:
-            df[fix] = df[fix] - round(mean)
-            # print(fix)
-
-    df['hole'] = np.where(df['hole']>0, 1, 0)
-
-    df['acc'] = calculate_summed_magnitude(df, 'acc_')
-
-    return df
-
-def read_raw_dirdata(dir_path: str, csv_pattern: str, func: Callable[[str], pd.DataFrame]=read_truck_data) -> List[pd.DataFrame]:
+def read_raw_dirdata(dir_path: str, csv_pattern: str, func: Callable[[str], pd.DataFrame]) -> List[pd.DataFrame]:
     csv_pattern+='.csv'
     pattern = re.compile(csv_pattern)
     try:
@@ -67,36 +23,60 @@ def read_raw_dirdata(dir_path: str, csv_pattern: str, func: Callable[[str], pd.D
     except:
         return []
 
-def get_columns(folder_path: str, keep_latlon=False):
-    file_path = glob.glob(f'{folder_path}/*.csv')[0]
+def load_preprocessed_file(file_path: str, keep_latlon=False) -> pd.DataFrame:
+    """
+    Reads a single preprocessed CSV file.
+
+    Parameters
+    ----------
+    file_path : str
+        Path to the CSV file.
+    keep_latlon : bool, optional
+        Whether to keep 'lat' and 'lon' columns. Defaults to False.
+
+    Returns
+    -------
+    pd.DataFrame
+        Loaded DataFrame with optional columns removed.
+    """
     df = pd.read_csv(file_path, sep=';', dtype=np.float32)
     if not keep_latlon:
-        df = df.drop(columns=['lat', 'lon'])
-    return df.columns
+        df = df.drop(columns=['lat', 'lon'], errors='ignore')
+    return df
 
-def load_prepared(folder_path:str, keep_latlon=False, sample_frac=1, x_selection:list[str]=None)->pd.DataFrame:
+def load_preprocessed(folder_path:str, keep_latlon=False, sample_frac=1)->pd.DataFrame:
+    """
+        Loads all preprocessed CSV files from a folder and optionally downsamples them.
+
+        Parameters
+        ----------
+        folder_path : str
+            Path to the folder containing CSV files.
+        keep_latlon : bool, optional
+            Whether to keep 'lat' and 'lon' columns. Defaults to False.
+        sample_frac : float, optional
+            Fraction of data to sample. Defaults to 1 (no downsampling).
+
+        Returns
+        -------
+        pd.DataFrame
+            Combined and optionally sampled DataFrame from all CSVs.
+        """
     dataframes = []
     for filename in os.listdir(folder_path):
         if filename.endswith('.csv'):
             file_path = os.path.join(folder_path, filename)
-            df = pd.read_csv(file_path, sep=';', dtype=np.float32)
-            if not keep_latlon:
-                df = df.drop(columns=['lat', 'lon'], errors='ignore')
-            dataframes.append(df)
+            dataframes.append(load_preprocessed_file(file_path, keep_latlon))
 
     result = pd.concat(dataframes, ignore_index=True).sample(frac=sample_frac)
-    if x_selection is None:
-        x_selection=result.columns
-    else:
-        for output  in ['hole', 'class']:
-            if output in result:
-                x_selection.append(output)
-    return result[x_selection]
+    return result
 
-def read_new_points(path: str) -> Optional[pd.DataFrame]:
+def read_track(path: str) -> Optional[pd.DataFrame]:
     try:
         raw_df = pd.read_csv(path, delimiter=';', encoding='windows-1251', index_col=0)
-    except:
+    except Exception as e:
+        print(f"Trouble with {path}:")
+        print(e)
         return None
     explicit_columns = ['Широта', 'Долгота', 'Скорость', 'point']
     pattern_columns = raw_df.columns[raw_df.columns.str.contains('Ускорение|наклон', regex=True)]
@@ -130,4 +110,5 @@ def read_new_points(path: str) -> Optional[pd.DataFrame]:
 
     df = convert_dash_to_nan(df)
     df['class'] = df['class'].fillna(0)
+    df['hole'] = np.where(df['class']>0, 1, 0)
     return df

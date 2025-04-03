@@ -11,7 +11,7 @@ from sklvq import GLVQ
 from tqdm import tqdm
 
 from evaluate.draw_functions import lvq_class_separation
-from exploration.data_read import load_prepared
+from exploration.data_read import load_preprocessed
 from helpers import train_split_by_column
 
 def save_model(model, model_path):
@@ -107,7 +107,7 @@ def get_model_predictions(config, X_train, y_train, X_test, retrain=False):
 # Example usage:
 if __name__ == '__main__':
     target, ws= 'class', 10
-    df = load_prepared(f'data/{target}{ws}', sample_frac=0.2)
+    df = load_preprocessed(f'data/{target}{ws}', sample_frac=0.2)
     X_train, y_train, X_test, y_test = train_split_by_column(df, target, 0.3)
 
     base_config = {

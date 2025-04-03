@@ -8,7 +8,7 @@ import pickle
 from joblib import Parallel, delayed
 from pprint import pprint
 
-from exploration.data_read import load_prepared
+from exploration.data_read import load_preprocessed
 
 
 def train_evaluate(params, X_t, y_t, X_e, y_e, train_weights=None, eval_weights=None):
@@ -94,7 +94,7 @@ if __name__ == "__main__":
 
     ws = 10
     target = 'class'
-    big_df = load_prepared(f"data/multi{ws}", sample_frac=0.5)
+    big_df = load_preprocessed(f"data/multi{ws}", sample_frac=0.5)
 
     # Define parameter grid for boosting
     # param_grid = {

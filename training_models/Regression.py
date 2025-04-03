@@ -4,7 +4,7 @@ from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_absolute_error
 from sklearn.model_selection import train_test_split
 
-from exploration.data_read import load_prepared
+from exploration.data_read import load_preprocessed
 
 if __name__ == "__main__":
     from sklearn.utils.class_weight import compute_sample_weight
@@ -12,7 +12,7 @@ if __name__ == "__main__":
     # Load data
     ws = 10
     target = 'class'
-    df = load_prepared(f"data/class{ws}", sample_frac=1)
+    df = load_preprocessed(f"data/class{ws}", sample_frac=1)
 
     # Split data
     train_df, test_df = train_test_split(df, test_size=0.1)
