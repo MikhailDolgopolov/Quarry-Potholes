@@ -15,7 +15,7 @@ from exploration.data_read import load_preprocessed
 from helpers import train_split_by_column
 
 if __name__ == '__main__':
-    target = 'hole'
+    target = 'pothole'
     results = {}
 
     for ws in [5, 7, 10]:

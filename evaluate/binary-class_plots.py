@@ -113,7 +113,7 @@ def create_visualization(ws, model_path, accuracy, f1_pothole, f1_nonhole, TN_pr
 
 # Main execution block
 if __name__ == '__main__':
-    target = 'class'
+    target = 'severity'
     ws=12
     bar_w = 20
     output_dir = 'images/LVQ/WSs'

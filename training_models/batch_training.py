@@ -36,19 +36,19 @@ class ModelTrainer:
     def load_data(self):
         self.df = load_preprocessed(f'data/hole{self.ws}', keep_latlon=False, sample_frac=1)
         self.X_train, self.y_train, self.X_test, self.y_test = train_split_by_column(
-            self.df, 'hole', 0.9
+            self.df, 'pothole', 0.9
         )
-
-    def get_feature_sets(self) -> List[List[str]]:
+    @classmethod
+    def get_feature_sets(cls, ws:int) -> List[List[str]]:
         with open("exploration/features/features_selected.json") as f:
-            return json.load(f)[f'ws_{self.ws}'].values()
+            return list(json.load(f)[f'ws_{ws}'].values())
 
     def generate_configs(self) -> List[Dict]:
         configs = []
         for model_type, grid in self.param_grids.items():
             for params in product(*grid.values()):
                 param_dict = dict(zip(grid.keys(), params))
-                for features in self.get_feature_sets():
+                for features in self.get_feature_sets(self.ws):
                     configs.append({
                         'type': model_type,
                         'params': param_dict,

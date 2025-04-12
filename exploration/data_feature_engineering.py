@@ -2,12 +2,10 @@ from pathlib import Path
 from typing import Callable
 
 import pandas as pd
-from sklearn.model_selection import ParameterGrid
 from tqdm import tqdm
 
-from ComplexTransformer import MultiWindowRollingTransformer
 from Transformer import RollingWindowTransformer
-from exploration.data_read import read_raw_dirdata, read_track
+from exploration.data_read import read_dir_csvs
 
 data_transformers = {ws:RollingWindowTransformer({
     'rot_X': ['std', 'cv', 'iqr', 'skew', 'var'],
@@ -16,14 +14,14 @@ data_transformers = {ws:RollingWindowTransformer({
     'acc_Y': ['std', 'kurt', 'var', 'iqr', ],
     'acc_Z': ['std', 'kurt', 'var','iqr', 'range'],
     'acc': ['std', 'var', 'iqr', 'kurt', 'cv', 'skew'],
-}, window_size=ws) for ws in [5, 7, 10]}
+}, window_size=ws) for ws in range(5, 20)}
 
 
-def preprocess_data(
+def transform_data(
         tracks,
         transformer,
         output_folder,
-        paths_func: Callable[[int], str],
+        paths_func: Callable[[int], str|Path],
         dir_pattern=r'[0-9]{1,3}_w',
 ):
     """
@@ -40,12 +38,13 @@ def preprocess_data(
     preprocessed_dfs = {}
     dir_names = [paths_func(i) for i in tracks]
     num_tracks = []
-
+    read_pretty_track = lambda x: pd.read_csv(x, sep=',')
     # Process each directory
-    mould = lambda x: transformer.transform(x) if transformer is not None else x
-    for dir_name in tqdm(dir_names, desc="Processing paths"):
-        new_path = read_raw_dirdata(dir_name, dir_pattern, read_track)
-        rolled_new_paths = [mould(df) for df in new_path if not df.empty]
+    for dir_name in tqdm(dir_names, desc=f"Transforming {output_folder} with {transformer.window_size} rolling window"):
+        # print(f"Processing {dir_name}")
+        combined_routes = read_dir_csvs(dir_name, dir_pattern, read_pretty_track)
+        # print(combined_routes[0])
+        rolled_new_paths = [transformer.transform(df) for df in combined_routes if not df.empty]
 
         routeID = Path(dir_name).name
         if rolled_new_paths:  # Only process if there’s at least one non-empty DataFrame
@@ -59,31 +58,27 @@ def preprocess_data(
     Path(output_folder).mkdir(parents=True, exist_ok=True)
 
     # Save processed DataFrames
-    for route, df in tqdm(preprocessed_dfs.items(), desc="Saving data"):
+    for route, df in tqdm(preprocessed_dfs.items()):
         output_path = Path(output_folder) / f"{route}.csv"
-        df.to_csv(output_path, index=False, sep=';')
+        df.to_csv(output_path, index=False)
 
     print(f"Processed {len(preprocessed_dfs)} paths with {sum(num_tracks)} total tracks")
 
-def roll_data(ws, input_folder='data/routes', raw=False):
+def roll_data(routes_folder: str, ws:int):
     tracks = range(1, 36)
-    dir_path_func = lambda n: f"{input_folder}/route{n}"
+    dir_path_func = lambda n: Path('data/preprocessed') / Path(routes_folder) / f"route{n}"
+    output_folder = f"data/engineered/{routes_folder}/rolled{ws}"
+    # if dir_path_func(30).exists():
+    #     return
 
-    output_folder = f"data/rolled{ws}"
-
-    t = None if raw else data_transformers[ws]
     # Run preprocessing
-    preprocess_data(
+    transform_data(
         tracks=tracks,
-        transformer=t,
+        transformer=data_transformers[ws],
         output_folder=output_folder,
         paths_func=dir_path_func,
     )
 
+
 if __name__ == "__main__":
-    variants = {
-        "ws": [7],
-        "input_folder": ["data/routes", "data/routes-lerp"]
-    }
-    for combination in ParameterGrid(variants):
-        roll_data(**combination)
+    roll_data('30peaks', 7)

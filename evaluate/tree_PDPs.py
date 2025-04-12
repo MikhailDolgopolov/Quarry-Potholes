@@ -5,7 +5,7 @@ from sklearn.inspection import PartialDependenceDisplay
 from exploration.data_read import load_preprocessed
 
 # Load data
-target = 'class'  # Consider renaming if it's a continuous target
+target = 'severity'  # Consider renaming if it's a continuous target
 df = load_preprocessed(f'data/{target}10', sample_frac=0.3)
 X, y = df.drop(columns=[target]), df[target]  # Renamed y_test to y
 

@@ -11,7 +11,7 @@ if __name__ == "__main__":
 
     # Load data
     ws = 10
-    target = 'class'
+    target = 'severity'
     df = load_preprocessed(f"data/class{ws}", sample_frac=1)
 
     # Split data

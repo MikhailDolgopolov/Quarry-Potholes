@@ -1,3 +1,5 @@
+import warnings
+
 import numpy as np
 import pandas as pd
 from sklearn.base import BaseEstimator, TransformerMixin
@@ -10,6 +12,7 @@ class RollingWindowTransformer(BaseEstimator, TransformerMixin):
     def __init__(self, column_params: Dict[str, List[OpType]], window_size: int = 5):
         if window_size <4:
             raise ValueError("Window size must be at least 4.")
+            # warnings.warn("")
         self.window_size = window_size
         self.column_transform = column_params
 
@@ -92,7 +95,7 @@ class RollingWindowTransformer(BaseEstimator, TransformerMixin):
                 pass
 
         # Preserve columns
-        preserve = ['hole', 'class']
+        preserve = ['pothole', 'severity']
         for output in preserve:
             if output in X.columns and output not in result.columns:
                 result[output] = X[output]

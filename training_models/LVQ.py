@@ -131,7 +131,7 @@ if __name__ == '__main__':
     def big_search():
         for ws in [7 ,10]:
             df = load_preprocessed(f'data/hole{ws}', sample_frac=0.8)
-            X_train, y_train, X_test, y_test = train_split_by_column(df, 'hole', 0.8)
+            X_train, y_train, X_test, y_test = train_split_by_column(df, 'pothole', 0.8)
 
             # Base configuration
             base_config = {
@@ -163,7 +163,7 @@ if __name__ == '__main__':
     # big_search()
     ws=10
     df = load_preprocessed(f'data/hole{ws}', sample_frac=1)
-    X, y = df[features_for_LVQ], df['hole']
+    X, y = df[features_for_LVQ], df['pothole']
     model_path = 'models/LVQs/glvq_hole10_[3_3]_adam_squared-euclidean.pkl'
     with open(model_path, 'rb') as f:
         model = pickle.load(f)

@@ -7,7 +7,7 @@ import pandas as pd
 import folium
 from helpers import predict_with_my_model  # Ensure can_predict is imported
 from exploration.data_read import read_truck_data
-from exploration.data_prep import data_transformers
+from exploration.data_feature_engineering import data_transformers
 
 # Constants
 MODEL_PATH = Path("models/LVQs/glvq_hole5_[2_2]_resampled1.1.pkl")  # Fixed path formatting
@@ -106,7 +106,7 @@ if __name__ == '__main__':
     if not feature_sets:
         raise ValueError("No feature sets found in configuration")
     features = feature_sets[0]  # Assuming correct feature set index
-    target = 'hole'
+    target = 'pothole'
 
     # Generate predictions
     X_route = prepared_data[features]

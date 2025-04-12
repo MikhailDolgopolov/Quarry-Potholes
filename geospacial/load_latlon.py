@@ -22,7 +22,7 @@ def filter_reliable_potholes(df,hole_threshold, eps, cluster_samples, reports, p
     """
     # Create a copy to avoid modifying the input DataFrame
     df_copy = df.copy()
-    df_copy['pothole'] = np.where(df['class'] > hole_threshold, 1, 0)
+    df_copy['pothole'] = np.where(df['severity'] > hole_threshold, 1, 0)
 
     # Scale the latitude and longitude for DBSCAN
     scaler = StandardScaler()

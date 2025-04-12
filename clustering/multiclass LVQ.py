@@ -45,7 +45,7 @@ def get_model_predictions(config, X_train, y_train, X_test, retrain=False):
     """
     # Unpack configuration
     prototypes = config['prototypes']
-    target = 'class'
+    target = 'severity'
     ws = config['ws']
     use_resampling = config['use_resampling']
     res_ratio = config.get('resampling_ratio', 1.0)
@@ -106,7 +106,7 @@ def get_model_predictions(config, X_train, y_train, X_test, retrain=False):
 
 # Example usage:
 if __name__ == '__main__':
-    target, ws= 'class', 10
+    target, ws= 'severity', 10
     df = load_preprocessed(f'data/{target}{ws}', sample_frac=0.2)
     X_train, y_train, X_test, y_test = train_split_by_column(df, target, 0.3)
 

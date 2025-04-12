@@ -101,4 +101,5 @@ def select_random_file(folder_path):
 
 
 if __name__ == '__main__':
+
     actualize_registry()

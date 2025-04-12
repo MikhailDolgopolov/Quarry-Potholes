@@ -95,7 +95,7 @@ if __name__ == "__main__":
 
     # Load data
     ws = 7
-    target = 'class'
+    target = 'severity'
     big_df = load_preprocessed(f"data/class{ws}", sample_frac=1)
     # GridSearch('LinearGAM', param_grid, big_df, test_frac=0.2)
 
