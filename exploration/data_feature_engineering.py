@@ -42,7 +42,7 @@ def transform_data(
     # Process each directory
     for dir_name in tqdm(dir_names, desc=f"Transforming {output_folder} with {transformer.window_size} rolling window"):
         # print(f"Processing {dir_name}")
-        combined_routes = read_dir_csvs(dir_name, dir_pattern, read_pretty_track)
+        combined_routes = read_dir_csvs(dir_name, read_pretty_track, dir_pattern)
         # print(combined_routes[0])
         rolled_new_paths = [transformer.transform(df) for df in combined_routes if not df.empty]
 

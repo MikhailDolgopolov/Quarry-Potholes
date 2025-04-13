@@ -115,7 +115,7 @@ if __name__ == '__main__':
     for r_id in tqdm(routes):
         in_folder = f'data/input-raw/route{r_id}'
         read_raw = lambda x: pd.read_csv(x, sep=';', encoding='cp1251', index_col=0)
-        frames = read_dir_csvs(in_folder, r'.*_w', read_raw)
+        frames = read_dir_csvs(in_folder, read_raw, r'.*_w')
         route_folder = out_folder / f'route{r_id}'
         os.makedirs(route_folder, exist_ok=True)
         for i, df in enumerate(frames):

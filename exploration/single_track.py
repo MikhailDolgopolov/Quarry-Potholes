@@ -22,19 +22,7 @@ for p in [10, 30, 50]:
 plt.legend()
 plt.show()
 plt.close(f)
-# plt.figure(figsize=(10, 6))
-# plt.plot([0] * len(df),  '--', color='gray',)
-# plt.plot(df['acc_X'], label='X', alpha=0.8)
-# plt.plot(df['acc_Y'], label='Y', alpha=0.8)
-# plt.plot(df['acc_Z']*10, label='10х Acceleration Z', alpha=0.8)
 
-
-# Add labels and title
-# plt.xlabel('1Hz readings')
-# plt.ylabel('Acceleration (m/s2)')
-# plt.title('Accelerometers')
-# plt.legend()
-# plt.show()
 
 
 

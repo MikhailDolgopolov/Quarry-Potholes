@@ -15,8 +15,8 @@ pd.set_option('display.max_columns', 15)
 pd.set_option('display.width', 1000)
 
 
-def read_dir_csvs(dir_path: str, csv_pattern: str, func: Callable[[str], pd.DataFrame]) -> List[pd.DataFrame]:
-    csv_pattern+='.csv'
+def read_dir_csvs(dir_path: str, func: Callable[[str], pd.DataFrame], csv_pattern: str=r'.*_w') -> List[pd.DataFrame]:
+    csv_pattern+=r'\.csv'
     pattern = re.compile(csv_pattern)
     try:
         # print(os.listdir(dir_path))
@@ -25,53 +25,53 @@ def read_dir_csvs(dir_path: str, csv_pattern: str, func: Callable[[str], pd.Data
     except:
         return []
 
-def load_preprocessed_file(file_path: str, keep_latlon=False) -> pd.DataFrame:
-    """
-    Reads a single preprocessed CSV file.
+# def load_preprocessed_file(file_path: str, keep_latlon=False) -> pd.DataFrame:
+#     """
+#     Reads a single preprocessed CSV file.
+#
+#     Parameters
+#     ----------
+#     file_path : str
+#         Path to the CSV file.
+#     keep_latlon : bool, optional
+#         Whether to keep 'lat' and 'lon' columns. Defaults to False.
+#
+#     Returns
+#     -------
+#     pd.DataFrame
+#         Loaded DataFrame with optional columns removed.
+#     """
+#     df = pd.read_csv(file_path, dtype=np.float32)
+#     if not keep_latlon:
+#         df = df.drop(columns=['lat', 'lon'], errors='ignore')
+#     return df
 
-    Parameters
-    ----------
-    file_path : str
-        Path to the CSV file.
-    keep_latlon : bool, optional
-        Whether to keep 'lat' and 'lon' columns. Defaults to False.
-
-    Returns
-    -------
-    pd.DataFrame
-        Loaded DataFrame with optional columns removed.
-    """
-    df = pd.read_csv(file_path, dtype=np.float32)
-    if not keep_latlon:
-        df = df.drop(columns=['lat', 'lon'], errors='ignore')
-    return df
-
-def load_preprocessed(folder_path:str, keep_latlon=False, sample_frac=1)->pd.DataFrame:
-    """
-        Loads all preprocessed CSV files from a folder and optionally downsamples them.
-
-        Parameters
-        ----------
-        folder_path : str
-            Path to the folder containing CSV files.
-        keep_latlon : bool, optional
-            Whether to keep 'lat' and 'lon' columns. Defaults to False.
-        sample_frac : float, optional
-            Fraction of data to sample. Defaults to 1 (no downsampling).
-
-        Returns
-        -------
-        pd.DataFrame
-            Combined and optionally sampled DataFrame from all CSVs.
-        """
-    dataframes = []
-    for filename in os.listdir(folder_path):
-        if filename.endswith('.csv'):
-            file_path = os.path.join(folder_path, filename)
-            dataframes.append(load_preprocessed_file(file_path, keep_latlon))
-
-    result = pd.concat(dataframes, ignore_index=True).sample(frac=sample_frac)
-    return result
+# def load_preprocessed(folder_path:str, keep_latlon=False, sample_frac=1)->pd.DataFrame:
+#     """
+#         Loads all preprocessed CSV files from a folder and optionally downsamples them.
+#
+#         Parameters
+#         ----------
+#         folder_path : str
+#             Path to the folder containing CSV files.
+#         keep_latlon : bool, optional
+#             Whether to keep 'lat' and 'lon' columns. Defaults to False.
+#         sample_frac : float, optional
+#             Fraction of data to sample. Defaults to 1 (no downsampling).
+#
+#         Returns
+#         -------
+#         pd.DataFrame
+#             Combined and optionally sampled DataFrame from all CSVs.
+#         """
+#     dataframes = []
+#     for filename in os.listdir(folder_path):
+#         if filename.endswith('.csv'):
+#             file_path = os.path.join(folder_path, filename)
+#             dataframes.append(load_preprocessed_file(file_path, keep_latlon))
+#
+#     result = pd.concat(dataframes, ignore_index=True).sample(frac=sample_frac)
+#     return result
 
 def read_recoded_track(path: str, delimiter: str = ',') -> Optional[pd.DataFrame]:
     try:
@@ -158,7 +158,7 @@ def pretty_data(routes: range,
 
     routes_dirs = [paths_func(i) for i in routes]
     for i, route in enumerate(tqdm(routes_dirs)):
-        tracks = read_dir_csvs(route, r'[0-9]{1,3}_w', read_recoded_track)
+        tracks = read_dir_csvs(route, read_recoded_track, r'[0-9]{1,3}_w')
         tracks = [track  for track in tracks if track is not None and not track.empty]
         os.makedirs(Path(output_folder) / f"route{i+1}", exist_ok=True)
         for j, track in enumerate(tracks):
