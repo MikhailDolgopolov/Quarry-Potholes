@@ -75,8 +75,8 @@ def pit_marking(input_df: pd.DataFrame, spike_window: int) -> pd.DataFrame:
         DataFrame with added 'severity' and 'pothole' columns.
     """
     aggregation = {
-        'front': ['Давление левый передний цилиндр', 'Давление правый передний цилиндр'],
-        'back': ['Давление левый задний цилиндр', 'Давление правый задний цилиндр']
+        'front': ['pressure_FL', 'pressure_FR'],
+        'back': ['pressure_RL', 'pressure_RR'],
     }
 
     threshold = 1.3
@@ -105,20 +105,29 @@ def pit_marking(input_df: pd.DataFrame, spike_window: int) -> pd.DataFrame:
 
     return input_df
 
-
-
-if __name__ == '__main__':
-    ws = 50
-    routes = range(1, 36)
-    out_folder = Path(f'data/input-recoded/{ws}peaks')
-    os.makedirs(out_folder, exist_ok=True)
+def relabel_data(routes: range, extremes_window_size: int,
+                 input_folder: Path|str, output_folder: Path|str) -> None:
+    """
+    Takes all the CSV files from input_folder, re-labels it based on pressure spikes,
+     and saves new CSVs to output_folder.
+    """
+    output_folder = Path(output_folder)/f'ws{extremes_window_size}_peaks'
+    os.makedirs(output_folder, exist_ok=True)
     for r_id in tqdm(routes):
-        in_folder = f'data/input-raw/route{r_id}'
-        read_raw = lambda x: pd.read_csv(x, sep=';', encoding='cp1251', index_col=0)
-        frames = read_dir_csvs(in_folder, read_raw, r'.*_w')
-        route_folder = out_folder / f'route{r_id}'
+        in_folder = Path(input_folder)/f'route{r_id}'
+        frames = read_dir_csvs(in_folder, pd.read_csv, r'.*_w')
+        route_folder = Path(output_folder) / f'route{r_id}'
         os.makedirs(route_folder, exist_ok=True)
         for i, df in enumerate(frames):
             if df.shape[0] > 0:
-                marked_df = pit_marking(df.copy(), ws)
-                marked_df.to_csv(Path(out_folder)/f'route{r_id}/{i+1}_w.csv', index=False)
+                marked_df = pit_marking(df.copy(), extremes_window_size)
+                marked_df.to_csv(route_folder / f'{i + 1}_w.csv', index=False)
+
+
+if __name__ == '__main__':
+    relabel_data(routes=range(1, 39), extremes_window_size=30,
+                 input_folder='data/renamed', output_folder='data/relabeled')
+    # ws = 10
+    # routes = range(1, 39)
+    # out_folder = Path(f'data/input-recoded/{ws}peaks')
+

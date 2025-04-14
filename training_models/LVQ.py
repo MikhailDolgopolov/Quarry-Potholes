@@ -5,6 +5,7 @@ from pathlib import Path
 from pprint import pprint
 import numpy as np
 import pandas as pd
+from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 from joblib import Parallel, delayed
 from sklearn.metrics import classification_report, f1_score
@@ -12,11 +13,19 @@ from sklearn.utils import resample
 from sklvq import GLVQ
 
 from evaluate.draw_functions import lvq_class_separation
-from exploration.data_read import load_preprocessed
+from exploration.data_read import load_engineered_data
 from helpers import train_split_by_column
 
-features_for_LVQ = ['acc_Z_std', 'acc_X_std', 'acc_X_var', 'acc_var', 'acc_std', 'acc_Z_range', 'acc_cv', 'acc_Z_iqr',
-                    'acc_X_iqr']
+features_for_LVQ = [
+        "acc_X_iqr",
+        "acc_X_std",
+        "acc_X_var",
+        "acc_Y_std",
+        "acc_Y_var",
+        "acc_Z_iqr",
+        "acc_Z_range",
+        "acc_std"
+    ]
 
 if __name__ == '__main__':
 
@@ -128,44 +137,45 @@ if __name__ == '__main__':
 
         return best_config, best_model, results
 
-    def big_search():
-        for ws in [7 ,10]:
-            df = load_preprocessed(f'data/hole{ws}', sample_frac=0.8)
-            X_train, y_train, X_test, y_test = train_split_by_column(df, 'pothole', 0.8)
+    def big_search(ws):
 
-            # Base configuration
-            base_config = {
-                'ws': ws,
-                'use_resampling': True,
-                'cols': features_for_LVQ,
-                'resampling_ratio': 1.0,
-            }
+        # Base configuration
+        base_config = {
+            'ws': ws,
+            'use_resampling': True,
+            'cols': features_for_LVQ,
+            'resampling_ratio': 1.0,
+        }
 
-            # Get parameter grid with solver options
-            param_grid = get_solver_options_grid()
+        # Get parameter grid with solver options
+        param_grid = get_solver_options_grid()
 
-            # Perform grid search
-            best_config, best_model, results = gridsearch_glvq(X_train, y_train, X_test, y_test, base_config, param_grid)
+        # Perform grid search
+        best_config, best_model, results = gridsearch_glvq(X_train, y_train, X_test, y_test, base_config, param_grid)
 
-            # Print best configuration and its performance
-            print(f"Best Configuration for ws {ws}:")
-            pprint(best_config)
-            y_pred_best = best_model.predict(X_test[features_for_LVQ])
-            print(f"Classification Report for Best {ws} Model:")
-            print(classification_report(y_test, y_pred_best))
+        # Print best configuration and its performance
+        print(f"Best Configuration for ws {ws}:")
+        pprint(best_config)
+        y_pred_best = best_model.predict(X_test[features_for_LVQ])
+        print(f"Classification Report for Best {ws} Model:")
+        print(classification_report(y_test, y_pred_best))
 
-            # Show top results
-            results_df = pd.DataFrame(results)
-            results_df = results_df.sort_values('f1_score', ascending=False)
-            print(f"Top 3 Configurations by F1 Score for {ws}:")
-            print(results_df.head(3))
+        # Show top results
+        results_df = pd.DataFrame(results)
+        results_df = results_df.sort_values('f1_score', ascending=False)
+        print(f"Top 3 Configurations by F1 Score for {ws}:")
+        print(results_df.head(3))
 
-    # big_search()
-    ws=10
-    df = load_preprocessed(f'data/hole{ws}', sample_frac=1)
+
+    #
+    ws=7
+    df = load_engineered_data(f'data/engineered/30peaks_eps5/rolled{ws}').sample(frac=0.2)
     X, y = df[features_for_LVQ], df['pothole']
-    model_path = 'models/LVQs/glvq_hole10_[3_3]_adam_squared-euclidean.pkl'
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+    # big_search(ws)
+    model_path = 'models/LVQs\glvq_hole7_[3_3]_sgd_squared-euclidean.pkl'
     with open(model_path, 'rb') as f:
         model = pickle.load(f)
-    #
+
     lvq_class_separation(model, X, features_for_LVQ)

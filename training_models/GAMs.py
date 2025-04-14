@@ -11,7 +11,7 @@ from sklearn.model_selection import ParameterGrid, train_test_split
 from joblib import Parallel, delayed
 from sklearn.utils import compute_sample_weight
 
-from exploration.data_read import load_preprocessed
+from exploration.data_read import load_engineered_data
 from helpers import train_split_by_column
 
 
@@ -87,7 +87,7 @@ def plot_partial_dependencies(model: LinearGAM, X: pd.DataFrame):
 if __name__ == "__main__":
     # Data preparation
     target, window_size = "class", 10
-    df = load_preprocessed(f"data/{target}{window_size}", sample_frac=0.5)
+    df = load_engineered_data(f"data/{target}{window_size}", sample_frac=0.5)
     X_train, y_train, X_test, y_test = train_split_by_column(df, target, 0.2)
 
     remove = [

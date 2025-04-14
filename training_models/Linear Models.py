@@ -11,7 +11,7 @@ from sklearn.model_selection import train_test_split, ParameterGrid
 from sklearn.utils import compute_sample_weight
 from tqdm import tqdm
 import warnings
-from exploration.data_read import load_preprocessed
+from exploration.data_read import load_engineered_data
 from joblib import Parallel, delayed  # Added for parallel processing
 
 # Suppress all warnings
@@ -96,7 +96,7 @@ if __name__ == "__main__":
     # Load data
     ws = 7
     target = 'severity'
-    big_df = load_preprocessed(f"data/class{ws}", sample_frac=1)
+    big_df = load_engineered_data(f"data/class{ws}", sample_frac=1)
     # GridSearch('LinearGAM', param_grid, big_df, test_frac=0.2)
 
     train_df, test_df = train_test_split(big_df, test_size=0.3)

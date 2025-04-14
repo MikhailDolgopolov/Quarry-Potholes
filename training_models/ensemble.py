@@ -5,14 +5,14 @@ from scipy.stats import mode
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, HistGradientBoostingClassifier
 from sklearn.metrics import classification_report, confusion_matrix, f1_score
 
-from exploration.data_read import load_preprocessed
+from exploration.data_read import load_engineered_data
 from helpers import train_split_by_column
 from models.model_registry import predict_with_my_model, predict_with_top_models
 from training_models.batch_training import ModelTrainer
 
 target = 'pothole'
 cols = ModelTrainer.get_feature_sets(5)[0]
-df = load_preprocessed(f'data/engineered/lerp1/rolled5 [5.0s]', keep_latlon=False, sample_frac=1)
+df = load_engineered_data(f'data/engineered/lerp1/rolled5 [5.0s]', keep_latlon=False, sample_frac=1)
 X_train, y_train, X_test, y_test = train_split_by_column(df, target, 0.5)
 # X_train, X_test = X_train[cols], X_test[cols]
 

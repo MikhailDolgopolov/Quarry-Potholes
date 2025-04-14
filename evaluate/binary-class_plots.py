@@ -5,14 +5,14 @@ from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.metrics import classification_report
-from exploration.data_read import load_preprocessed
+from exploration.data_read import load_engineered_data
 from models.model_registry import predict_with_my_model
 
 
 # Function to load and prepare data
 def load_and_prepare_data(target, ws):
     """Load dataset and prepare features, target, and binary target."""
-    df = load_preprocessed(f'data/{target}{ws}')
+    df = load_engineered_data(f'data/{target}{ws}')
     X, y = df.drop(columns=target), df[target]
     y_binary = np.where(y > 0, 1, 0)
     overall_counts = y.value_counts().sort_index()

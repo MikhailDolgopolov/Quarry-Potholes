@@ -10,7 +10,7 @@ from pprint import pprint
 
 from xgboost import XGBRegressor, XGBClassifier
 
-from exploration.data_read import load_preprocessed
+from exploration.data_read import load_engineered_data
 
 cols=["acc_X_std",
             "acc_X_var",
@@ -110,7 +110,7 @@ if __name__ == "__main__":
     pd.set_option('display.width', 1000)
 
     target = 'severity'
-    big_df = load_preprocessed(f"data/engineered/30peaks/rolled7", sample_frac=1)
+    big_df = load_engineered_data(f"data/engineered/30peaks/rolled7", sample_frac=1)
 
     # Ensure your target and features are numeric as needed
     # big_df[cols] = big_df[cols].select_dtypes(include=[np.number])

@@ -55,11 +55,23 @@ def convert_dash_to_nan(df):
                 df[col] = pd.to_numeric(df[col])
     return df
 
-def train_split_by_column(df, y_column:str, test_frac: Interval(RealNotInt, 0, 1, closed="neither")):
-    train_df, test_df = train_test_split(df, test_size=test_frac)
-    X_train, y_train = train_df.drop(columns=[y_column]), train_df[y_column]
+def split_off_target_cols(df, y_column:str, frac=1, random_state=42):
+    targets = ['pothole', 'severity']
+    if y_column not in targets:
+        raise ValueError(f"Invalid y_column. Expected one of {targets}")
+    df = df.sample(frac=frac, random_state=random_state)
+    return df.drop(columns = targets), df[y_column]
 
-    X_test, y_test = test_df.drop(columns=[y_column]), test_df[y_column]
+
+def train_split_by_column(df, y_column:str, test_frac: Interval(RealNotInt, 0, 1, closed="neither")):
+    targets = ['pothole', 'severity']
+    if y_column not in targets:
+        raise ValueError(f"Invalid y_column. Expected one of {targets}")
+
+    train_df, test_df = train_test_split(df, test_size=test_frac)
+
+    X_train, y_train = train_df.drop(columns=targets), train_df[y_column]
+    X_test, y_test = test_df.drop(columns=targets), test_df[y_column]
     return X_train, y_train, X_test, y_test
 
 def load_pickle(path):

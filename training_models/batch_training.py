@@ -10,7 +10,7 @@ from sklearn.svm import SVC
 from sklearn.ensemble import HistGradientBoostingClassifier
 from sklearn.metrics import accuracy_score, f1_score
 from sklvq import GLVQ
-from exploration.data_read import load_preprocessed
+from exploration.data_read import load_engineered_data
 from helpers import train_split_by_column
 from models.model_registry import (get_model_filename, register_model,
                                    discover_models, initialize_registry)
@@ -34,7 +34,7 @@ class ModelTrainer:
         self.model_dir.mkdir(parents=True, exist_ok=True)
 
     def load_data(self):
-        self.df = load_preprocessed(f'data/hole{self.ws}', keep_latlon=False, sample_frac=1)
+        self.df = load_engineered_data(f'data/hole{self.ws}', keep_latlon=False, sample_frac=1)
         self.X_train, self.y_train, self.X_test, self.y_test = train_split_by_column(
             self.df, 'pothole', 0.9
         )

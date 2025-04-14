@@ -21,14 +21,14 @@ def transform_data(
         tracks,
         transformer,
         output_folder,
-        paths_func: Callable[[int], str|Path],
+        paths_func: Callable[[int], Path],
         dir_pattern=r'[0-9]{1,3}_w',
 ):
     """
     Preprocess data with flexible current_transformer, output folder, and dir reading function.
 
     Args:
-        tracks: Iterable of track IDs (e.g., range(1, 36)).
+        tracks: Iterable of track IDs (e.g., range(1, 39)).
         dir_path_func: Function to generate directory paths (e.g., lambda n: f"data/routes/route{n}").
         transformer: Transformer object (e.g., RollingWindowTransformer instance).
         output_folder: Path or string for output folder (e.g., "data/prepared10").
@@ -40,7 +40,7 @@ def transform_data(
     num_tracks = []
     read_pretty_track = lambda x: pd.read_csv(x, sep=',')
     # Process each directory
-    for dir_name in tqdm(dir_names, desc=f"Transforming {output_folder} with {transformer.window_size} rolling window"):
+    for dir_name in tqdm(dir_names, desc=f"Transforming {paths_func(0).parent} with {transformer.window_size} rolling window"):
         # print(f"Processing {dir_name}")
         combined_routes = read_dir_csvs(dir_name, read_pretty_track, dir_pattern)
         # print(combined_routes[0])
@@ -64,10 +64,12 @@ def transform_data(
 
     print(f"Processed {len(preprocessed_dfs)} paths with {sum(num_tracks)} total tracks")
 
-def roll_data(routes_folder: str, ws:int):
-    tracks = range(1, 36)
-    dir_path_func = lambda n: Path('data/preprocessed') / Path(routes_folder) / f"route{n}"
-    output_folder = f"data/engineered/{routes_folder}/rolled{ws}"
+def roll_data(in_routes_folder: str|Path, ws:int):
+    tracks = range(1, 39)
+    in_routes_folder = Path(in_routes_folder)
+    # print(in_routes_folder.name)
+    dir_path_func = lambda n: in_routes_folder / f"route{n}"
+    output_folder = f"data/engineered/{in_routes_folder.name}/rolled{ws}"
     # if dir_path_func(30).exists():
     #     return
 
@@ -81,4 +83,4 @@ def roll_data(routes_folder: str, ws:int):
 
 
 if __name__ == "__main__":
-    roll_data('30peaks', 7)
+    roll_data('data/relabeled/ws30_peaks', 7)
