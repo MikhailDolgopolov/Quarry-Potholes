@@ -14,10 +14,11 @@ from helpers import calculate_summed_magnitude, convert_dash_to_nan
 pd.set_option('display.max_columns', 15)
 pd.set_option('display.width', 1000)
 
+straight_predictors = ['acc_X', 'acc_Y', 'acc_Z', 'acc','fb_tilt', 'tilt']
 def load_engineered_data(dir_path: Path|str) -> pd.DataFrame:
-    csv_files = glob.glob(os.path.join(dir_path, '*.csv'))
+    csv_files = glob.glob(os.path.join(dir_path, 'route*.csv'))
     dfs = []
-    for csv_file in tqdm(csv_files):
+    for csv_file in tqdm(csv_files, desc=f'Loading from {dir_path}'):
         df = pd.read_csv(csv_file)
         dfs.append(df)
     points = pd.concat(dfs, ignore_index=True)
@@ -70,7 +71,7 @@ def read_recoded_track(path: str, delimiter: str = ',') -> Optional[pd.DataFrame
     return df
 
 
-def read_raw_track(path: str, delimiter: str = ';', encoding='windows-1251') -> Optional[pd.DataFrame]:
+def read_raw_track(path: str|Path, delimiter: str = ';', encoding='windows-1251') -> Optional[pd.DataFrame]:
     try:
         raw_df = pd.read_csv(path, sep=delimiter, encoding=encoding)
     except Exception as e:
@@ -116,6 +117,18 @@ def read_raw_track(path: str, delimiter: str = ';', encoding='windows-1251') -> 
     df['pothole'] = np.where(df['severity']>0, 1, 0)
     return df
 
+def load_plain_data(folder: str | Path, routes: range = range(1, 39)):
+    routes_dfs = []
+    for i in routes:
+        # Load all CSVs from the directory into a list of DataFrames
+        dfs = read_dir_csvs(Path(folder) / f'route{i}', pd.read_csv)
+
+        if len(dfs) > 0:
+            route = pd.concat(dfs, ignore_index=True)
+            routes_dfs.append(route)
+
+    # Concatenate all route DataFrames into one final DataFrame
+    return pd.concat(routes_dfs, ignore_index=True)
 
 def reread_raw_data(routes: range,
                 paths_func: Callable[[int], str],
@@ -130,6 +143,10 @@ def reread_raw_data(routes: range,
             track.to_csv(Path(output_folder) / f"route{i+1}/"/f"{j+1}_w.csv", index=False)
 
 if __name__ == '__main__':
-    reread_raw_data(range(1, 39),
-                lambda x: f"data/input-raw/route{x}",
-                f"data/renamed")
+    # reread_raw_data(range(1, 39),
+    #             lambda x: f"data/input-raw/route{x}",
+    #             f"data/renamed")
+
+    dfs = load_plain_data(f"data/renamed")
+
+    print(dfs['pothole'].value_counts())

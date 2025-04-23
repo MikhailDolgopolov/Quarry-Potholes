@@ -8,13 +8,17 @@ from Transformer import RollingWindowTransformer
 from exploration.data_read import read_dir_csvs
 
 data_transformers = {ws:RollingWindowTransformer({
-    'rot_X': ['std', 'cv', 'iqr', 'skew', 'var'],
-    'rot_Y': ['std', 'cv', 'iqr', 'skew', 'var'],
-    'acc_X': ['std', 'kurt', 'var', 'iqr', ],
-    'acc_Y': ['std', 'kurt', 'var', 'iqr', ],
-    'acc_Z': ['std', 'kurt', 'var','iqr', 'range'],
-    'acc': ['std', 'var', 'iqr', 'kurt', 'cv', 'skew'],
-}, window_size=ws) for ws in range(5, 20)}
+    'rot_X': ['', 'std', 'cv', 'iqr', 'skew', 'var'],
+    'rot_Y': ['', 'std', 'cv', 'iqr', 'skew', 'var'],
+    'acc_X': ['', 'std', 'kurt', 'var', 'iqr', ],
+    'acc_Y': ['', 'std', 'kurt', 'var', 'iqr', ],
+    'acc_X_zscore': ['', 'std', 'kurt', 'var', 'iqr', ],
+    'acc_Y_zscore': ['', 'std', 'kurt', 'var', 'iqr', ],
+    'acc_Z': ['', 'std', 'kurt', 'var','iqr', 'range'],
+    'acc_Z_zscore': ['', 'std', 'kurt', 'var','iqr', 'range'],
+    'acc': ['', 'std', 'var', 'iqr', 'kurt', 'cv', 'skew'],
+    'acc_zscore': ['', 'std', 'var', 'iqr', 'kurt', 'cv', 'skew'],
+}, window_size=ws) for ws in range(5, 60)}
 
 
 def transform_data(
@@ -35,43 +39,31 @@ def transform_data(
         read_dir_func: Function to read directory data (default: read_raw_dirdata).
         dir_pattern: Regex pattern for file matching (default: r'[0-9]{1,3}_w').
     """
-    preprocessed_dfs = {}
     dir_names = [paths_func(i) for i in tracks]
     num_tracks = []
-    read_pretty_track = lambda x: pd.read_csv(x, sep=',')
+
     # Process each directory
-    for dir_name in tqdm(dir_names, desc=f"Transforming {paths_func(0).parent} with {transformer.window_size} rolling window"):
-        # print(f"Processing {dir_name}")
-        combined_routes = read_dir_csvs(dir_name, read_pretty_track, dir_pattern)
-        # print(combined_routes[0])
+    for dir_name in tqdm(dir_names, desc=f"Transforming {paths_func(0).parent.name} with {transformer.window_size} rolling window"):
+        combined_routes = read_dir_csvs(dir_name, pd.read_csv, dir_pattern)
         rolled_new_paths = [transformer.transform(df) for df in combined_routes if not df.empty]
-
         routeID = Path(dir_name).name
+        (Path(output_folder) / f"{routeID}").mkdir(parents=True, exist_ok=True)
+        num_tracks.append(len(rolled_new_paths))
         if rolled_new_paths:  # Only process if there’s at least one non-empty DataFrame
-            num_tracks.append(len(rolled_new_paths))
-            if len(rolled_new_paths) == 1:
-                preprocessed_dfs[routeID] = rolled_new_paths[0]
-            else:
-                preprocessed_dfs[routeID] = pd.concat(rolled_new_paths, ignore_index=True)
 
-    # Ensure output folder exists
-    Path(output_folder).mkdir(parents=True, exist_ok=True)
+            for i, df in enumerate(rolled_new_paths):
+                df.to_csv(Path(output_folder) / f"{routeID}/{i+1}_w.csv", index=False)
 
-    # Save processed DataFrames
-    for route, df in tqdm(preprocessed_dfs.items()):
-        output_path = Path(output_folder) / f"{route}.csv"
-        df.to_csv(output_path, index=False)
-
-    print(f"Processed {len(preprocessed_dfs)} paths with {sum(num_tracks)} total tracks")
+    print(f"Processed {len(num_tracks)} paths with {sum(num_tracks)} total tracks")
 
 def roll_data(in_routes_folder: str|Path, ws:int):
     tracks = range(1, 39)
     in_routes_folder = Path(in_routes_folder)
-    # print(in_routes_folder.name)
     dir_path_func = lambda n: in_routes_folder / f"route{n}"
-    output_folder = f"data/engineered/{in_routes_folder.name}/rolled{ws}"
-    # if dir_path_func(30).exists():
-    #     return
+    output_folder = f"data/rolled/{in_routes_folder.name}_rolled{ws}"
+
+    # Ensure output folder exists
+    Path(output_folder).mkdir(parents=True, exist_ok=True)
 
     # Run preprocessing
     transform_data(
@@ -83,4 +75,5 @@ def roll_data(in_routes_folder: str|Path, ws:int):
 
 
 if __name__ == "__main__":
-    roll_data('data/relabeled/ws30_peaks', 7)
+    for rws in [10]:
+        roll_data(f'data/normalized/extremes_w10_norm', rws)

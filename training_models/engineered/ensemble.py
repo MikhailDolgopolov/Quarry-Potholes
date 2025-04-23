@@ -1,14 +1,11 @@
-import json
-
 import numpy as np
-from scipy.stats import mode
-from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, HistGradientBoostingClassifier
-from sklearn.metrics import classification_report, confusion_matrix, f1_score
+from sklearn.ensemble import HistGradientBoostingClassifier
+from sklearn.metrics import classification_report
 
 from exploration.data_read import load_engineered_data
 from helpers import train_split_by_column
-from models.model_registry import predict_with_my_model, predict_with_top_models
-from training_models.batch_training import ModelTrainer
+from models.model_registry import predict_with_my_model
+from training_models.engineered.batch_training import ModelTrainer
 
 target = 'pothole'
 cols = ModelTrainer.get_feature_sets(5)[0]

@@ -1,117 +1,259 @@
-import glob
-import json
 import pickle
+import re
 import random
 from pathlib import Path
-from typing import List
+from typing import List, Tuple
 
+import numpy as np
 import pandas as pd
 import folium
-from exploration.data_read import read_dir_csvs
+from tqdm import tqdm
+
+from exploration.data_read import read_dir_csvs, straight_predictors
+from exploration.features.Separability import anomaly_features
+
+# Constants
+COLOR_PALETTE = ['#e41a1c', '#377eb8', '#4daf4a', '#984ea3',
+                 '#ff7f00', '#ffff33', '#a65628', '#f781bf']
 
 
-def init_map(route: List[pd.DataFrame], route_id: int = 0) -> folium.Map:
-    required_columns = {'lat', 'lon', 'severity'}
-    if not required_columns.issubset(route[0].columns):
-        raise ValueError("Each track must have 'lat', 'lon', and 'severity' columns.")
+# --------------------------
+# Core Mapping Components
+# --------------------------
 
-    m = folium.Map(location=[route[0].lat.mean(), route[0].lon.mean()], zoom_start=13)
+def create_map_base(route_data: List[pd.DataFrame], route_id: int) -> folium.Map:
+    """Initialize folium map with route data"""
+    if not route_data:
+        raise ValueError("Empty route data provided")
 
-    # Add a title to the map
+    if not {'lat', 'lon', 'severity'}.issubset(route_data[0].columns):
+        raise ValueError("Missing required columns in route data")
+
+    map_center = [route_data[0].lat.mean(), route_data[0].lon.mean()]
+    m = folium.Map(location=map_center, zoom_start=13)
+
+    # Add map title
     title_html = f'''
         <h3 align="center" style="font-size:20px"><b>Route {route_id}</b></h3>
-        <h4 align="center" style="font-size:16px">Tracks: {len(route)}</h4>
-        '''
+        <h4 align="center" style="font-size:16px">{len(route_data)} Tracks</h4>
+    '''
     m.get_root().html.add_child(folium.Element(title_html))
     return m
 
 
-def draw_tracks(m: folium.Map, tracks: List[pd.DataFrame]) -> folium.Map:
-    # Draw faint polylines for each track
+def add_route_tracks(m: folium.Map, tracks: List[pd.DataFrame], color: str = '#555555') -> folium.Map:
+    """Add faint route tracks to the map"""
     for track in tracks:
         coords = list(zip(track['lat'], track['lon']))
-        folium.PolyLine(coords, color='black', weight=2, opacity=0.2).add_to(m)
+        folium.PolyLine(
+            coords,
+            color=color,
+            weight=2,
+            opacity=max(0.2, 1/len(tracks))
+        ).add_to(m)
     return m
 
 
-def draw_potholes(m: folium.Map,
-                  tracks: List[pd.DataFrame] | pd.DataFrame,
-                  name: str,
-                  radius_min: float = 2,
-                  radius_max: float = 6,
-                  circle_color: str = 'red') -> folium.Map:
-    if isinstance(tracks, List):
-        data = pd.concat(tracks, ignore_index=True)
-    elif isinstance(tracks, pd.DataFrame):
-        data = tracks
-    else:
-        raise ValueError("tracks must be a list of DataFrames or a single DataFrame.")
+# --------------------------
+# Pothole Visualization
+# --------------------------
+
+def create_pothole_layer(data: pd.DataFrame,
+                         layer_name: str,
+                         color: str = 'blue',
+                         radius_range: Tuple[float, float] = (3, 6),
+                         show: bool = True) -> folium.FeatureGroup:
+    """Create a configurable pothole visualization layer"""
+    layer = folium.FeatureGroup(name=layer_name, show=show)
 
     potholes = data[data['pothole'] == 1]
     if potholes.empty:
-        return m
+        return layer
 
-    # Compute minimum and maximum severity values
-    s_min = potholes['severity'].min()
-    s_max = potholes['severity'].max()
+    min_sev = potholes['severity'].min()
+    max_sev = potholes['severity'].max()
+    r_min, r_max = radius_range
 
-    pothole_layer = folium.FeatureGroup(name=name)
     for _, row in potholes.iterrows():
         severity = row['severity']
-        if s_max != s_min:
-            # Linear interpolation of severity to a radius value
-            radius = radius_min + (severity - s_min) / (s_max - s_min) * (radius_max - radius_min)
-        else:
-            radius = radius_min
+        radius = r_min + (severity - min_sev) / (max_sev - min_sev) * (r_max - r_min) if max_sev != min_sev else r_min
+
         folium.Circle(
             location=[row['lat'], row['lon']],
             radius=radius,
-            color=circle_color,
+            color=color,
             fill=True,
-            fill_opacity=0.2,
-            opacity=0.7
-        ).add_to(pothole_layer)
-    pothole_layer.add_to(m)
-    return m
+            fill_opacity=0.3,
+            opacity=0.7,
+            tooltip=f"Severity: {severity:.2f}"
+        ).add_to(layer)
+
+    return layer
 
 
-def compare_labeling(route_id: int,e:int, peaks=30) -> Path:
-    originals_path = f'data/renamed/route{route_id}'
-    processed_path = f'data/relabeled/ws{peaks}_peaks/route{route_id}'
-    cluster_path = f"data/clustered/{peaks}peaks_eps{e}/route{route_id}"
-    originals = read_dir_csvs(originals_path, pd.read_csv)
-    processed = read_dir_csvs(processed_path, pd.read_csv)
-    clusters = read_dir_csvs(cluster_path, pd.read_csv)
-    # print(len(originals), len(processed), len(clusters))
-    if len(originals)==0:
-        raise ValueError(f"No data in route {route_id}")
+# --------------------------
+# Data Handling
+# --------------------------
 
-    # Initialize the map using the original track list
-    m = init_map(route=originals, route_id=route_id)
-    m = draw_tracks(m=m, tracks=originals)
-
-    m = draw_potholes(m=m, tracks=processed, name="Processed", circle_color='blue', radius_max=8)
-    m = draw_potholes(m=m, tracks=originals, name="Original", circle_color='red', radius_max=6)
-    m = draw_potholes(m=m, tracks=clusters, name=f"Clustered e={e} meters",
-                      circle_color='darkgreen', radius_min=7, radius_max=12)
-
-    folium.LayerControl(collapsed=False).add_to(m)
-
-    map_path = Path(f"maps/route{route_id}_clusters{e}m_pothole_map.html")
-    map_path.parent.mkdir(exist_ok=True)
-    m.save(str(map_path))
-
-    return map_path
+def parse_anomaly_parameters(path: Path) -> tuple[float, ...]:
+    """Extract parameters from directory name"""
+    match = re.search(r"threshold([\d.]+)_([\d.]+)_rolled(\d+)", path.name)
+    if not match:
+        raise ValueError(f"Invalid directory format: {path.name}")
+    return tuple(map(float, match.groups()[:2])) + (int(match.groups()[2]),)
 
 
+def load_route_data(base_path: Path, route_id: int) -> List[pd.DataFrame]:
+    """Load CSV data for a route from directory"""
+    try:
+        return read_dir_csvs(base_path / f'route{route_id}', pd.read_csv)
+    except Exception as e:
+        raise FileNotFoundError(f"Data loading failed: {str(e)}")
+
+
+# --------------------------
+# Main Visualization Function
+# --------------------------
+
+def visualize_anomalies(route_id: int, threshold: float = 1.3) -> Path:
+    """Create interactive map comparing original and anomaly detections"""
+    # Data setup
+    anomalies_base = Path('data/anomalies')
+    output_path = Path(f"maps/anomalies/route{route_id}_comparison.html")
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Load original data from first available source
+    original_data = load_route_data(Path(f'data/relabeled/threshold{threshold}'), route_id)
+
+    if not original_data:
+        raise ValueError(f"No data found for route {route_id}")
+    for df in original_data:
+        df['pothole'] = np.where(df['severity']>=0.3, 1, 0)
+    # Initialize map
+    m = create_map_base(original_data, route_id)
+    m = add_route_tracks(m, original_data)
+
+    # Add original potholes (always visible)
+    m.add_child(create_pothole_layer(
+        pd.concat(original_data),
+        "⬤ Original Potholes",  # Black circle Unicode
+        color='black',
+        radius_range=(3, 5),
+        show=True
+    ))
+
+    # Add anomaly layers with different parameters
+    anomaly_dirs = list(anomalies_base.glob(f"threshold{threshold}*_*_rolled*"))
+    for i, param_dir in enumerate(anomaly_dirs):
+        try:
+            color = COLOR_PALETTE[i % len(COLOR_PALETTE)]
+            params = parse_anomaly_parameters(param_dir)
+
+            # Add colored circle to layer name
+            layer_name = (
+                f"<span style='color:{color}; display:inline-block; width:12px;'>⬤</span> "
+                f"Anomalies: Threshold={params[0]} | Number={params[1]} | WS={params[2]}"
+            )
+
+            anomaly_data = load_route_data(param_dir, route_id)
+            layer = create_pothole_layer(
+                pd.concat(anomaly_data),
+                layer_name,
+                color=color,
+                radius_range=(5, 8),
+                show=(i == 0)
+            )
+            m.add_child(layer)
+
+        except Exception as e:
+            print(f"Skipping {param_dir.name}: {str(e)}")
+            continue
+
+    # Finalize map controls
+    folium.LayerControl(collapsed=False, position='topright').add_to(m)
+    m.save(str(output_path))
+    return output_path
+
+
+def visualize_predictions(route_id: int) -> Path:
+    output_path = Path(f"maps/predictions/route{route_id}.html")
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Load original data with geospatial coordinates
+    original_data = load_route_data(Path('data/relabeled/extremes_w10'), route_id)
+    engineered_data = load_route_data(Path('data/isoforest/2.0_rolled10'), route_id)
+
+    # Create original pothole labels (FIX 1: Correct column assignment)
+    for df in original_data:
+        # Create 'pothole' COLUMN (not row) using .loc[:, 'pothole'] or direct assignment
+        df['pothole'] = np.where(df['severity'] >= 0.3, 1, 0)
+
+    # Load models
+    with open('models/LVQs/glvq_hole10_[2_3]_sgd_squared-euclidean.pkl', 'rb') as f:
+        lvq = pickle.load(f)
+
+    with open('models/LogReg/Plain_54.pkl', 'rb') as f:
+        logreg = pickle.load(f)
+
+    logreg_preds = []
+    for df in original_data:
+        # Create a copy to preserve original data
+        df_pred = df.copy()
+
+        X_predict = df_pred[straight_predictors]  # straight_predictors should be defined
+
+        df_pred['pothole'] = logreg.predict(X_predict.to_numpy())
+        logreg_preds.append(df_pred)
+
+    lvq_preds = []
+    for df in engineered_data:
+        # Create a copy to preserve original data
+        df_pred = df.copy()
+
+        X_predict = df_pred[anomaly_features]
+
+        df_pred['pothole'] = lvq.predict(X_predict)
+        lvq_preds.append(df_pred)
+    m = create_map_base(original_data, route_id)
+    m = add_route_tracks(m, original_data)
+
+    # Original potholes (black)
+    m.add_child(create_pothole_layer(
+        pd.concat(original_data),
+        "⬤ Original Potholes",
+        color='red',
+        radius_range=(12, 15),
+        show=True
+    ))
+
+    m.add_child(create_pothole_layer(
+        pd.concat(logreg_preds),
+        'LogReg Potholes',
+        color='red',
+        radius_range=(5, 8),
+    ))
+
+    m.add_child(create_pothole_layer(
+        pd.concat(lvq_preds),
+        'LVQ Potholes',
+        color='blue',
+        radius_range=(3, 5),
+    ))
+
+    # Add layer control (FIX 5: Ensure this is added before saving)
+    folium.LayerControl(collapsed=False, position='topright').add_to(m)
+
+    m.save(str(output_path))
+    return output_path
+# --------------------------
+# Execution
+# --------------------------
+bad_routes = [12, 4, 28, 9, 37]
 if __name__ == '__main__':
-    from tqdm import tqdm
-    routes = random.choices(range(1, 39), k=1)
-    # for route in tqdm(routes):
-    for e in tqdm([5,3]):
-        compare_labeling(5, e)
+    visualize_predictions(21)
+    routes_to_process = random.sample(list(set(range(1, 39))-set(bad_routes)), k=2)
 
-
-
-
-
+    # for rid in tqdm(routes_to_process, desc="Generating maps"):
+    #     visualize_predictions(rid)
+    #     except Exception as e:
+    #         print(f"Failed processing route {rid}: {str(e)}")

@@ -1,7 +1,7 @@
 import numpy as np
-from sklearn.ensemble import HistGradientBoostingRegressor
+from sklearn.ensemble import HistGradientBoostingRegressor, RandomForestClassifier
 from sklearn.model_selection import ParameterGrid, train_test_split
-from sklearn.metrics import mean_absolute_error, mean_squared_error, classification_report
+from sklearn.metrics import mean_absolute_error, mean_squared_error, classification_report, r2_score
 from sklearn.utils import compute_sample_weight
 import pandas as pd
 import pickle
@@ -10,7 +10,9 @@ from pprint import pprint
 
 from xgboost import XGBRegressor, XGBClassifier
 
-from exploration.data_read import load_engineered_data
+from exploration.data_read import load_engineered_data, load_plain_data
+from exploration.features.Separability import anomaly_features
+from helpers import train_split_by_column
 
 cols=["acc_X_std",
             "acc_X_var",
@@ -110,39 +112,27 @@ if __name__ == "__main__":
     pd.set_option('display.width', 1000)
 
     target = 'severity'
-    big_df = load_engineered_data(f"data/engineered/30peaks/rolled7", sample_frac=1)
+    rws=10
+    ews=30
+    big_df = load_plain_data(f"data/rolled/extremes_w{ews}_norm_rolled{rws}")
+    selected_cols = ["acc_zscore_kurt","acc_X_zscore_kurt","acc_Z_zscore","acc_Y_zscore","acc_zscore","acc_X_zscore","acc_Z_zscore_var"]
+    X_train, y_train, X_test, y_test = train_split_by_column(big_df, target, 0.2)
+    X_train, X_test = X_train[selected_cols], X_test[selected_cols]
 
-    # Ensure your target and features are numeric as needed
-    # big_df[cols] = big_df[cols].select_dtypes(include=[np.number])
-    # big_df[target] = pd.to_numeric(big_df[target], errors='coerce')
+    # scale_pos_weight = neg / pos
 
-    # You can try a separate simple XGB run to get baseline metrics:
-    cols = big_df.columns.drop(['severity', 'pothole'])
-    print(cols)
-    X_train, X_test, y_train, y_test = train_test_split(big_df[cols], big_df[target], test_size=0.2, random_state=42)
-
-    if target == 'pothole':
-        pos = (y_train == 1).sum()
-        neg = (y_train == 0).sum()
-        scale_pos_weight = neg / pos
-        model = XGBClassifier(
-            n_estimators=100,
-            learning_rate=0.1,
-            max_depth=6,
-            random_state=42,
-            scale_pos_weight=scale_pos_weight  # handle class imbalance
-        )
-        model.fit(X_train.to_numpy(), y_train.to_numpy())
-
-        y_pred = model.predict(X_test.to_numpy())
-        print(classification_report(y_test, y_pred))
-    elif target == 'severity':
-        model = XGBRegressor(
-            n_estimators=100,
-            learning_rate=0.1,
-            max_depth=6,
-            random_state=42,
-        )
-        model.fit(X_train.to_numpy(), y_train.to_numpy())
-        y_pred = model.predict(X_test.to_numpy())
-        print(mean_absolute_error(y_test, y_pred))
+    model = XGBRegressor(
+        n_estimators=100,
+        # learning_rate=0.1,
+        # max_depth=8,
+        random_state=42,
+        # scale_pos_weight=scale_pos_weight
+    )
+    model.fit(X_train.to_numpy(), y_train.to_numpy())
+    with open(f"models/XGBRs/XGBR_ews{ews}_rws{rws}.pkl", "wb") as f:
+        pickle.dump(model, f)
+    y_pred = model.predict(X_test.to_numpy())
+    y_t_bi = (y_test >0.3).astype(int)
+    y_pred_bi = (y_pred >0.3).astype(int)
+    print(r2_score(y_test, y_pred))
+    print(classification_report(y_t_bi, y_pred_bi))

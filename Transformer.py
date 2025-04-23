@@ -22,7 +22,7 @@ class RollingWindowTransformer(BaseEstimator, TransformerMixin):
             raise ValueError(f"Missing columns in X: {missing_cols}")
         return self
 
-    def transform(self, X: pd.DataFrame, y=None) -> pd.DataFrame:
+    def transform(self, X: pd.DataFrame, y=None, preserve_gps=True) -> pd.DataFrame:
         if not isinstance(X, pd.DataFrame):
             raise ValueError("X must be a DataFrame.")
 
@@ -96,6 +96,8 @@ class RollingWindowTransformer(BaseEstimator, TransformerMixin):
 
         # Preserve columns
         preserve = ['pothole', 'severity']
+        if preserve_gps:
+            preserve += ['lat', 'lon']
         for output in preserve:
             if output in X.columns and output not in result.columns:
                 result[output] = X[output]

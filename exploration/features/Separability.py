@@ -1,27 +1,20 @@
-import json
-import pprint
-from collections import Counter
+from evaluate.draw_functions import plot_feature_ranges
+from exploration.data_read import load_engineered_data, load_plain_data
 
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-from scipy.stats import mannwhitneyu
+with open('exploration/features/features_U_anomalies.txt') as f:
+    l = f.readlines()[0].rstrip('\n')
+    anomaly_features = list(feat.strip('"') for feat in l.split(','))
 
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.feature_selection import SelectFromModel
-from sklearn.linear_model import LogisticRegression
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import roc_auc_score
-from sklearn.inspection import permutation_importance
-from sklearn.preprocessing import StandardScaler
-from tqdm import trange
-
-from exploration.data_read import load_engineered_data
-from helpers import train_split_by_column, split_off_target_cols
-
-
-
+with open('exploration/features/features_U_pressure.txt') as f:
+    l = f.readlines()[0].rstrip('\n')
+    pressure_features = list(feat.strip('"') for feat in l.split(','))
 
 if __name__ == '__main__':
-    # select_by_mannwhitney(num_cols=12, ws=7, data_path='data/engineered/ws30_peaks/rolled7')
-    select_by_predictors(12, 7, 'data/engineered/ws30_peaks/rolled7')
+    # df = load_engineered_data('data/engineered/30peaks_eps5/rolled7')
+    # df = load_engineered_data('data/engineered/combined/rolled5')
+    # df = load_engineered_data('data/engineered/combined/rolled7')
+    df = load_plain_data('data/anomalies/threshold1.3_2.0_rolled10')
+    # print(df.columns)
+    target = 'pothole'
+    plot_feature_ranges(df[[target, *anomaly_features]])
+

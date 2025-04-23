@@ -1,6 +1,7 @@
 from pathlib import Path
 import numpy as np
 import pandas as pd
+import seaborn as sns
 from matplotlib import pyplot as plt
 from matplotlib.patches import Patch, Rectangle
 from sklvq import GLVQ
@@ -58,7 +59,6 @@ def lvq_class_separation(model: GLVQ, X, feature_names, accuracy=None, save_path
             predicted_points = X.loc[y_pred == cls, feature].values if isinstance(X, pd.DataFrame) else X[
                                                                                                             y_pred == cls][
                                                                                                         :, feat_idx]
-
             # Plot prototypes (range)
             if len(prototypes) > 0:
                 proto_min, proto_max = np.min(prototypes), np.max(prototypes)
@@ -112,3 +112,59 @@ def lvq_class_separation(model: GLVQ, X, feature_names, accuracy=None, save_path
     else:
         plt.show()
     plt.close(fig)
+
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+import pandas as pd
+import numpy as np
+
+
+def plot_feature_ranges(df: pd.DataFrame, target: str = 'pothole', f=None):
+    """
+    Create a grid of box plots for the given features.
+    Each subplot displays a box plot of the feature distribution
+    grouped by target class, with different colors per class.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        The input DataFrame containing the feature columns and the target column.
+    target : str, optional
+        The name of the target column. Defaults to 'pothole'.
+    """
+    if f is None:
+        f = df.columns
+
+    df = df.copy()
+
+    for feat in f:
+        if df[feat].dtype == object:
+            df[feat] = pd.to_numeric(df[feat], errors='ignore')
+
+    df[target] = pd.Categorical(df[target])
+    class_names = df[target].cat.categories
+    palette = sns.color_palette("husl", len(class_names))  # bright, distinct colors
+
+    n_features = len(f)
+    n_cols = int(np.sqrt(n_features))
+    n_rows = int(np.ceil(n_features / n_cols))
+
+    fig, axes = plt.subplots(n_rows, n_cols, figsize=(4 * n_cols, 4 * n_rows), squeeze=False)
+    axes = axes.flatten()
+
+    for i, feat in enumerate(f):
+        ax = axes[i]
+        sns.boxplot(x=target, y=feat, data=df, ax=ax, showfliers=False, palette=palette, hue=target)
+        ax.set_title(feat, fontsize=12)
+        ax.set_ylabel("Value")
+        ax.set_xlabel("")
+        ax.grid(True, axis='y', linestyle=':', alpha=0.7)
+
+    # Hide unused subplots
+    for j in range(i + 1, len(axes)):
+        axes[j].set_visible(False)
+
+    plt.tight_layout(rect=[0, 0, 1, 0.95])
+    plt.show()
+

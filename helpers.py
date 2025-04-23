@@ -1,3 +1,4 @@
+import glob
 import hashlib
 import os
 import pickle
@@ -60,7 +61,7 @@ def split_off_target_cols(df, y_column:str, frac=1, random_state=42):
     if y_column not in targets:
         raise ValueError(f"Invalid y_column. Expected one of {targets}")
     df = df.sample(frac=frac, random_state=random_state)
-    return df.drop(columns = targets), df[y_column]
+    return df.drop(columns = targets, errors='ignore'), df[y_column]
 
 
 def train_split_by_column(df, y_column:str, test_frac: Interval(RealNotInt, 0, 1, closed="neither")):
@@ -70,8 +71,8 @@ def train_split_by_column(df, y_column:str, test_frac: Interval(RealNotInt, 0, 1
 
     train_df, test_df = train_test_split(df, test_size=test_frac)
 
-    X_train, y_train = train_df.drop(columns=targets), train_df[y_column]
-    X_test, y_test = test_df.drop(columns=targets), test_df[y_column]
+    X_train, y_train = train_df.drop(columns=targets, errors='ignore'), train_df[y_column]
+    X_test, y_test = test_df.drop(columns=targets, errors='ignore'), test_df[y_column]
     return X_train, y_train, X_test, y_test
 
 def load_pickle(path):
@@ -79,7 +80,7 @@ def load_pickle(path):
         return pickle.load(f)
 
 
-def discretize_to_levels(arr, levels):
+def discretize_to_levels(arr:np.array, levels)->np.array:
     """
     Round array values to the nearest specified levels
 
@@ -111,6 +112,25 @@ def select_random_file(folder_path):
         print(f"Error selecting file: {e}")
         return None
 
+def count_route_files(data_dir: Path, r: int) -> int:
+    """
+    Look for the first subfolder of data_dir matching 'extremes_w*/route{r}',
+    and return how many files are in that folder.
+    """
+    # 1) Build the glob pattern
+    pattern = str(data_dir / f"extremes_w*/route{r}")
+    matches = glob.glob(pattern)
+
+    if not matches:
+        # No matching folder found
+        return 0
+
+    # 2) Use the first matched folder
+    route_folder = Path(matches[0])
+
+    # 3) Count only files (skip subdirectories, if you like)
+    files = [p for p in route_folder.iterdir() if p.is_file()]
+    return len(files)
 
 if __name__ == '__main__':
 
